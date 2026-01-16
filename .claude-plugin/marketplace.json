@@ -1,0 +1,22 @@
+{
+  "name": "skills-public",
+  "owner": {
+    "name": "",
+    "email": "owner@example.com"
+  },
+  "metadata": {
+    "description": "Freely available skills for anyone",
+    "version": "1.0.1"
+  },
+  "plugins": [
+    {
+      "name": "skills-public",
+      "description": "Freely available skills for anyone",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/skill-manager"
+      ]
+    }
+  ]
+}
