@@ -1,0 +1,20 @@
+{
+  "name": "skills-public",
+  "owner": {
+    "name": "Michael Schmidt",
+    "email": "42623536+jmichaelschmidt@users.noreply.github.com"
+  },
+  "metadata": {
+    "description": "Freely available skills for anyone",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "skills-public",
+      "description": "Freely available skills for anyone",
+      "source": "./",
+      "strict": false,
+      "skills": []
+    }
+  ]
+}
