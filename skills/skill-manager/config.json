@@ -1,0 +1,52 @@
+{
+  "platforms": {
+    "claude": {
+      "enabled": true,
+      "user_path": "~/.claude/skills",
+      "is_source": true
+    },
+    "codex": {
+      "enabled": true,
+      "user_path": "~/.codex/skills",
+      "is_source": false
+    },
+    "gemini": {
+      "enabled": true,
+      "user_path": "~/.gemini/skills",
+      "is_source": false
+    },
+    "copilot": {
+      "enabled": false,
+      "user_path": "~/.copilot/skills",
+      "is_source": false
+    }
+  },
+  "sync_mode": "symlink",
+  "marketplaces": {
+    "private": {
+      "repo": "https://github.com/jmichaelschmidt/skills-private",
+      "description": "Personal/experimental skills (only you)",
+      "visibility": "private"
+    },
+    "team": {
+      "repo": "https://github.com/jmichaelschmidt/skills-team",
+      "description": "Shared skills for your primary collaborators",
+      "visibility": "private"
+    },
+    "public": {
+      "repo": "https://github.com/jmichaelschmidt/skills-public",
+      "description": "Freely available skills for anyone",
+      "visibility": "public"
+    },
+    "plumwheel": {
+      "repo": "https://github.com/jmichaelschmidt/skills-plumwheel",
+      "description": "Skills for Plumwheel project",
+      "visibility": "private"
+    }
+  },
+  "owner": {
+    "name": "Michael Schmidt",
+    "email": "42623536+jmichaelschmidt@users.noreply.github.com"
+  },
+  "local_repos_path": "~/GitHub"
+}

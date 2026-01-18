@@ -1,0 +1,47 @@
+{
+  "platforms": {
+    "claude": {
+      "enabled": false,
+      "user_path": "~/.claude/skills",
+      "is_source": false
+    },
+    "codex": {
+      "enabled": false,
+      "user_path": "~/.codex/skills",
+      "is_source": false
+    },
+    "gemini": {
+      "enabled": false,
+      "user_path": "~/.gemini/skills",
+      "is_source": false
+    },
+    "copilot": {
+      "enabled": false,
+      "user_path": "~/.copilot/skills",
+      "is_source": false
+    }
+  },
+  "sync_mode": "symlink",
+  "marketplaces": {
+    "private": {
+      "repo": "",
+      "description": "Personal/experimental skills",
+      "visibility": "private"
+    },
+    "team": {
+      "repo": "",
+      "description": "Shared skills for collaborators",
+      "visibility": "private"
+    },
+    "public": {
+      "repo": "",
+      "description": "Freely available skills",
+      "visibility": "public"
+    }
+  },
+  "owner": {
+    "name": "",
+    "email": ""
+  },
+  "local_repos_path": "~/GitHub"
+}

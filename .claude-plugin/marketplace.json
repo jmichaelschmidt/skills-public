@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Freely available skills for anyone",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
@@ -14,7 +14,9 @@
       "description": "Freely available skills for anyone",
       "source": "./",
       "strict": false,
-      "skills": []
+      "skills": [
+        "./skills/skill-manager"
+      ]
     }
   ]
 }
