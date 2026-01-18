@@ -1,0 +1,346 @@
+---
+name: skill-manager
+description: Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and tiered marketplaces. Use when users want to list skills, sync between platforms, publish skills to private/team/public marketplaces, audit skill versions, or set up their environment. Triggers on phrases like "list skills", "sync skills", "publish skill", "skill marketplace", "deploy skill", "audit skills", or "skill inventory".
+---
+
+# Skill Manager
+
+Manage Agent Skills across multiple AI platforms and tiered marketplace repositories.
+
+## Core Capabilities
+
+1. **Multi-Platform Sync** - Deploy skills across Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot
+2. **Inventory** - Discover and list all skills across platform locations
+3. **Publish** - Push skills to tiered GitHub marketplace repositories (private/team/public)
+4. **Audit** - Compare skill versions, detect drift, identify inconsistencies
+5. **Validate** - Check skill compliance with the Agent Skills specification
+
+## Supported Platforms
+
+| Platform | User Skills Path | Detection |
+|----------|-----------------|-----------|
+| Claude Code | `~/.claude/skills/` | `~/.claude/` exists |
+| OpenAI Codex | `~/.codex/skills/` | `~/.codex/` exists |
+| Gemini CLI | `~/.gemini/skills/` | `~/.gemini/` exists |
+| GitHub Copilot | `~/.copilot/skills/` | `~/.copilot/` exists |
+
+## Quick Start
+
+### First-Time Setup
+
+Run the interactive setup wizard:
+
+```bash
+scripts/init.py
+```
+
+This will:
+1. Detect installed AI platforms on your system
+2. Choose which platform is your "source of truth"
+3. Configure which platforms to sync skills to
+4. Set sync mode (symlink or copy)
+5. Optionally configure marketplace repositories
+
+### Sync Skills Between Platforms
+
+After setup, sync a skill from your source platform to all configured targets:
+
+```bash
+scripts/sync.py ~/.claude/skills/my-skill
+```
+
+Or sync all skills at once:
+
+```bash
+scripts/sync.py --all
+```
+
+Options:
+- `--to claude,codex,gemini,copilot` - Override target platforms
+- `--to auto` - Auto-detect installed platforms
+- `--to all` - Sync to all known platforms
+- `--mode symlink|copy` - Override sync mode
+- `--dry-run` - Preview changes without applying
+- `--force` - Overwrite existing skills without prompting
+- `--all` - Sync all skills from source platform
+
+### List All Skills
+
+```bash
+scripts/inventory.py
+```
+
+Options:
+- `--platform claude|codex|gemini|copilot|all` - Filter by platform
+- `--format table|json|yaml` - Output format
+- `--verbose` - Show full paths and metadata
+
+## Tiered Marketplace System
+
+Skills can be published to three tiers with different access levels:
+
+| Tier | Visibility | Use Case |
+|------|-----------|----------|
+| **Private** | Only you | Personal/experimental skills |
+| **Team** | Collaborators | Shared skills for your team |
+| **Public** | Anyone | Open source skills for the community |
+
+Each tier is a separate GitHub repository that functions as a Claude Code marketplace.
+
+### Publish a Skill
+
+```bash
+scripts/publish.py ~/.claude/skills/my-skill --tier team
+```
+
+This will:
+1. Copy the skill to your team marketplace repo
+2. Update marketplace.json
+3. Create a PR for review
+4. Sync to other platforms (if configured)
+
+If you don't specify `--tier`, you'll be prompted to choose.
+
+### Sync Marketplace Repos
+
+Pull latest from your marketplace repositories:
+
+```bash
+scripts/marketplace-sync.py
+scripts/marketplace-sync.py --tier team
+scripts/marketplace-sync.py --status
+```
+
+### Audit Skills for Drift
+
+```bash
+scripts/audit.py <skill-name>
+scripts/audit.py --all
+```
+
+### Validate a Skill
+
+```bash
+scripts/validate.py <skill-path>
+```
+
+## Configuration
+
+Configuration is stored in `config.json`:
+
+```json
+{
+  "platforms": {
+    "claude": {
+      "enabled": true,
+      "user_path": "~/.claude/skills",
+      "is_source": true
+    },
+    "codex": {
+      "enabled": true,
+      "user_path": "~/.codex/skills",
+      "is_source": false
+    },
+    "gemini": {
+      "enabled": false,
+      "user_path": "~/.gemini/skills",
+      "is_source": false
+    },
+    "copilot": {
+      "enabled": false,
+      "user_path": "~/.copilot/skills",
+      "is_source": false
+    }
+  },
+  "sync_mode": "symlink",
+  "marketplaces": {
+    "private": {
+      "repo": "https://github.com/you/skills-private",
+      "description": "Personal/experimental skills",
+      "visibility": "private"
+    },
+    "team": {
+      "repo": "https://github.com/your-org/skills-team",
+      "description": "Shared skills for collaborators",
+      "visibility": "private"
+    },
+    "public": {
+      "repo": "https://github.com/your-org/skills-public",
+      "description": "Freely available skills",
+      "visibility": "public"
+    }
+  },
+  "owner": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "local_repos_path": "~/GitHub"
+}
+```
+
+### Config Fields
+
+| Field | Description |
+|-------|-------------|
+| `platforms` | Platform configurations (enabled, path, source) |
+| `sync_mode` | Default sync mode: `symlink` or `copy` |
+| `marketplaces` | GitHub repo URLs for each tier |
+| `owner` | Your name and email for commits |
+| `local_repos_path` | Where marketplace repos are cloned |
+
+## Marketplace Repository Structure
+
+Each marketplace repo follows this structure:
+
+```
+skills-{tier}/
+├── .claude-plugin/
+│   └── marketplace.json    # Plugin catalog
+├── skills/
+│   ├── skill-one/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   └── skill-two/
+│       └── SKILL.md
+└── README.md
+```
+
+### marketplace.json Format
+
+```json
+{
+  "name": "skills-team",
+  "owner": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "metadata": {
+    "description": "Shared skills for collaborators",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "skills-team",
+      "description": "Shared skills for collaborators",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/skill-one",
+        "./skills/skill-two"
+      ]
+    }
+  ]
+}
+```
+
+## Workflow: Publishing Skills
+
+### Step 1: Develop Locally
+
+Create and test your skill in your source platform's skills directory:
+
+```
+my-skill/
+├── SKILL.md           # Required
+├── scripts/           # Optional
+├── references/        # Optional
+└── assets/            # Optional
+```
+
+### Step 2: Validate
+
+```bash
+scripts/validate.py ~/.claude/skills/my-skill
+```
+
+### Step 3: Publish
+
+```bash
+scripts/publish.py ~/.claude/skills/my-skill --tier team
+```
+
+### Step 4: Merge PR
+
+Review and merge the PR created in your marketplace repo.
+
+### Step 5: Users Install
+
+Users add your marketplace and install:
+
+```
+/plugin marketplace add your-org/skills-team
+```
+
+Then browse skills in the `/plugin` UI under the Discover tab.
+
+## Cross-Platform Skill Development
+
+### Writing Portable Skills
+
+- Avoid hardcoding platform-specific paths
+- Use environment detection if behavior must differ
+- Test on multiple platforms before publishing
+
+### Sync Modes
+
+| Mode | Pros | Cons |
+|------|------|------|
+| **symlink** | Changes propagate instantly, saves disk space | Requires symlink support |
+| **copy** | Works everywhere, independent copies | Must re-sync to propagate changes |
+
+### Skill Specification Compliance
+
+| Field | Required | Max Length | Rules |
+|-------|----------|------------|-------|
+| `name` | Yes | 64 chars | Lowercase, hyphens, digits only |
+| `description` | Yes | 1024 chars | No angle brackets. Include WHAT and WHEN |
+| `license` | No | - | License name or file reference |
+
+## Troubleshooting
+
+### Skill Not Appearing After Publish
+
+1. **Merge the PR** - Skills only appear after the PR is merged
+2. **Refresh marketplace** - In `/plugin` UI, go to Marketplaces tab and press `u` to update
+3. **Verify marketplace.json** - Check that the skill path is in the plugins array
+
+### Sync Not Working
+
+1. Check your config: `cat ~/.claude/skills/skill-manager/config.json`
+2. Verify source platform is set: look for `"is_source": true`
+3. Verify target platforms are enabled: look for `"enabled": true`
+4. Run with `--dry-run` to preview: `scripts/sync.py --all --dry-run`
+
+### Platform Not Detected
+
+1. Ensure the platform is installed and has its config directory
+2. Check paths in config.json match your system
+3. Re-run `scripts/init.py` to reconfigure
+
+### Publish Fails
+
+1. Check that `gh` CLI is installed and authenticated
+2. Verify repository URLs in config.json
+3. Run `scripts/marketplace-sync.py --status` to check repo state
+
+### Symlink Issues
+
+```bash
+# Check if symlink is valid
+ls -la ~/.codex/skills/my-skill
+
+# Check target exists
+ls -la $(readlink ~/.codex/skills/my-skill)
+```
+
+## IDE Reload Reminder
+
+After syncing or publishing skills, you may need to reload your IDE window for changes to take effect:
+
+- **VS Code**: `Cmd+Shift+P` → "Reload Window"
+- This is required because AI assistants load their skill inventory at startup
+
+## See Also
+
+- `skill-creator` skill - For creating new skills from scratch
+- [Agent Skills Specification](https://agentskills.io/specification) - Full specification
