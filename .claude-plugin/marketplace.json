@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Freely available skills for anyone",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   "plugins": [
     {
@@ -15,6 +15,7 @@
       "source": "./",
       "strict": false,
       "skills": [
+        "./skills/prd-planner",
         "./skills/skill-manager"
       ]
     }
