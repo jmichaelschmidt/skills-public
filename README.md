@@ -69,7 +69,7 @@ Claude will automatically use the skill's instructions to complete the task.
 
 | Skill | Description |
 |-------|-------------|
-| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once, then distribute it to Claude Code, Codex, Gemini CLI, and Copilot simultaneously. |
+| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once in Claude Code, then distribute it to Codex, Gemini CLI, and Copilot simultaneously. |
 
 ## Trust & Security
 
