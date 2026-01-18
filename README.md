@@ -69,8 +69,8 @@ Claude will automatically use the skill's instructions to complete the task.
 
 | Skill | Description |
 |-------|-------------|
-| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once in Claude Code, then distribute it to Codex, Gemini CLI, and Copilot simultaneously. |
-
+| [prd-planner](skills/prd-planner/) | Generate structured PRD (Product Requirements Document) planning documents optimized for AI-assisted development. Creates discrete, single-conversa... |
+| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and tiered marketplaces. Use when users want t... |
 ## Trust & Security
 
 ### Curated by Collaborators
