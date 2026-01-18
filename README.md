@@ -15,6 +15,7 @@ Skills follow the [Agent Skills Specification](https://agentskills.io/specificat
 - **One skill works across all platforms** - Write a skill once and use it with any supported AI assistant
 - **No vendor lock-in** - Your skills aren't tied to a single tool
 - **Portable workflows** - Switch between AI assistants without losing your custom capabilities
+- **Automatic syncing** - Use the `skill-manager` skill to automatically distribute skills across all your AI tools with a single command
 
 ## Quick Start (5 minutes)
 
@@ -48,15 +49,21 @@ This opens the plugin browser. Use the arrow keys to navigate:
 
 ### Step 3: Use Your New Skills
 
-Once installed, the skill is automatically active. Just ask Claude to do something the skill enables. For example, if you installed `skill-manager`, you can say:
+Once installed, the skill is automatically active. Just ask Claude to do something the skill enables, or ask it to explain the skill to you.
 
+**Example - ask about a skill:**
+> "How does the skill-manager skill work?"
+
+Your AI assistant will read the skill's instructions and explain its capabilities, commands, and how to use it.
+
+**Example - use a skill:**
 > "List all my installed skills"
 
 or
 
-> "Publish my-skill to the public marketplace"
+> "Sync my skills to Codex"
 
-Claude will automatically use the skill's instructions.
+Claude will automatically use the skill's instructions to complete the task.
 
 ## Available Skills
 
@@ -66,18 +73,20 @@ Claude will automatically use the skill's instructions.
 
 ## Trust & Security
 
-### Curated, Not Open
+### Curated by Collaborators
 
-While this is a public repository, **not just anyone can add or modify skills**. All submissions go through a review process before being merged. This marketplace is curated to ensure:
+This is a **curated marketplace**, not an open publishing platform. Skills are added by known collaborators and reviewed before being merged. We don't accept unsolicited skill submissions from the general public.
+
+This approach ensures:
 
 - **No malicious instructions** - We review for prompt injection, data exfiltration attempts, and other security risks
 - **No harmful commands** - Skills that run destructive commands must include appropriate warnings and confirmations
-- **Transparent behavior** - Skills should do what they claim to do, nothing more
-- **Quality standards** - Skills must be well-documented and actually useful
+- **Transparent behavior** - Skills do what they claim to do, nothing more
+- **Quality standards** - Skills are well-documented and actually useful
 
 ### How We Review Skills
 
-Every pull request is manually reviewed. We check for:
+Every skill is reviewed before being added. We check for:
 
 1. **Security risks** - Prompt injection, attempts to override safety guidelines, hidden instructions
 2. **Data safety** - No sending user data to external services without clear disclosure
@@ -93,49 +102,38 @@ Even with our review process, you should:
 - **Review any scripts** - If a skill includes scripts, inspect them before running
 - **Report concerns** - If you notice suspicious behavior, [open an issue](https://github.com/jmichaelschmidt/skills-public/issues)
 
-## How to Contribute
+## Contributing
 
-### Proposing a New Skill
+### For Collaborators
 
-We welcome contributions! Here's how to submit a skill:
+If you're a collaborator on this repository, you can add skills directly or via pull request. Please follow the skill structure and guidelines below.
 
-1. **Fork this repository** on GitHub
+### Interested in Contributing?
 
-2. **Create your skill folder** under `skills/`:
-   ```
-   skills/
-   └── your-skill-name/
-       ├── SKILL.md        # Required - the skill instructions
-       ├── scripts/        # Optional - helper scripts
-       └── references/     # Optional - reference docs
-   ```
+If you've built a skill you think would be valuable here, [open an issue](https://github.com/jmichaelschmidt/skills-public/issues) to start a conversation. We may invite you as a collaborator if it's a good fit.
 
-3. **Write your SKILL.md** with this format:
-   ```markdown
-   ---
-   name: your-skill-name
-   description: A short description of what this skill does and when to use it.
-   ---
+### Skill Structure
 
-   # Your Skill Name
+```
+skills/
+└── your-skill-name/
+    ├── SKILL.md        # Required - the skill instructions
+    ├── scripts/        # Optional - helper scripts
+    └── references/     # Optional - reference docs
+```
 
-   Instructions for the AI assistant go here...
-   ```
+### SKILL.md Format
 
-4. **Add your skill to marketplace.json** in `.claude-plugin/`:
-   ```json
-   "skills": [
-     "./skills/existing-skill",
-     "./skills/your-skill-name"
-   ]
-   ```
+```markdown
+---
+name: your-skill-name
+description: A short description of what this skill does and when to use it.
+---
 
-5. **Update this README** to add your skill to the Available Skills table
+# Your Skill Name
 
-6. **Open a pull request** with:
-   - A clear description of what your skill does
-   - Example use cases
-   - Any security considerations
+Instructions for the AI assistant go here...
+```
 
 ### Skill Guidelines
 
@@ -146,14 +144,6 @@ Good skills are:
 - **Safe** - Include warnings for destructive operations; never hide behavior
 - **Documented** - Explain what the skill does, when to use it, and any prerequisites
 - **Cross-platform** - Avoid hardcoding paths or platform-specific assumptions when possible
-
-### What Will Get Rejected
-
-- Skills that attempt prompt injection or try to override AI safety guidelines
-- Skills that send data to external services without clear disclosure
-- Skills with obfuscated or hidden functionality
-- Skills that are duplicates of existing skills without meaningful improvement
-- Low-quality or undocumented skills
 
 ## Installing Skills Manually
 
