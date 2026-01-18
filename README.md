@@ -1,12 +1,20 @@
 # Skills Marketplace: Public
 
-A free, open collection of skills for Claude Code and other AI coding assistants.
+A free, curated collection of skills for Claude Code and other AI coding assistants.
 
 ## What Are Skills?
 
 Skills are instructions that teach AI assistants how to perform specific tasks. When you install a skill, your AI assistant gains new capabilities - like knowing how to deploy to your server, follow your team's coding standards, or use your project's specific tools.
 
 Think of skills like browser extensions, but for AI assistants. They extend what your AI can do.
+
+### Write Once, Use Everywhere
+
+Skills follow the [Agent Skills Specification](https://agentskills.io/specification), an open standard supported by multiple AI coding assistants including Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot. This means:
+
+- **One skill works across all platforms** - Write a skill once and use it with any supported AI assistant
+- **No vendor lock-in** - Your skills aren't tied to a single tool
+- **Portable workflows** - Switch between AI assistants without losing your custom capabilities
 
 ## Quick Start (5 minutes)
 
@@ -54,20 +62,42 @@ Claude will automatically use the skill's instructions.
 
 | Skill | Description |
 |-------|-------------|
-| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and tiered marketplaces |
+| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once, then distribute it to Claude Code, Codex, Gemini CLI, and Copilot simultaneously. |
+
+## Trust & Security
+
+### Curated, Not Open
+
+While this is a public repository, **not just anyone can add or modify skills**. All submissions go through a review process before being merged. This marketplace is curated to ensure:
+
+- **No malicious instructions** - We review for prompt injection, data exfiltration attempts, and other security risks
+- **No harmful commands** - Skills that run destructive commands must include appropriate warnings and confirmations
+- **Transparent behavior** - Skills should do what they claim to do, nothing more
+- **Quality standards** - Skills must be well-documented and actually useful
+
+### How We Review Skills
+
+Every pull request is manually reviewed. We check for:
+
+1. **Security risks** - Prompt injection, attempts to override safety guidelines, hidden instructions
+2. **Data safety** - No sending user data to external services without clear disclosure
+3. **Destructive operations** - Any commands that delete, overwrite, or modify system files must have safeguards
+4. **Credential handling** - Skills must not log, transmit, or mishandle sensitive information
+5. **Accuracy** - The skill description must match what it actually does
+
+### Your Responsibility
+
+Even with our review process, you should:
+
+- **Read a skill before installing** - Check the SKILL.md to understand what it does
+- **Review any scripts** - If a skill includes scripts, inspect them before running
+- **Report concerns** - If you notice suspicious behavior, [open an issue](https://github.com/jmichaelschmidt/skills-public/issues)
 
 ## How to Contribute
 
-### Who Can Contribute?
+### Proposing a New Skill
 
-**Everyone is welcome!** This is a public, open-source marketplace. You can:
-
-- **Submit new skills** via pull request
-- **Improve existing skills** by opening a PR
-- **Report issues** if a skill isn't working
-- **Request skills** by opening an issue
-
-### Submitting a New Skill
+We welcome contributions! Here's how to submit a skill:
 
 1. **Fork this repository** on GitHub
 
@@ -102,7 +132,10 @@ Claude will automatically use the skill's instructions.
 
 5. **Update this README** to add your skill to the Available Skills table
 
-6. **Open a pull request** with a description of what your skill does
+6. **Open a pull request** with:
+   - A clear description of what your skill does
+   - Example use cases
+   - Any security considerations
 
 ### Skill Guidelines
 
@@ -110,17 +143,17 @@ Good skills are:
 
 - **Focused** - Do one thing well
 - **Clear** - Write instructions the AI can follow unambiguously
-- **Safe** - Don't include destructive commands without warnings
-- **Documented** - Explain what the skill does and how to use it
+- **Safe** - Include warnings for destructive operations; never hide behavior
+- **Documented** - Explain what the skill does, when to use it, and any prerequisites
+- **Cross-platform** - Avoid hardcoding paths or platform-specific assumptions when possible
 
-### Review Process
+### What Will Get Rejected
 
-All submissions are reviewed before merging. We check for:
-
-- Clarity and usefulness
-- No malicious code or instructions
-- Proper SKILL.md format
-- Updated marketplace.json and README
+- Skills that attempt prompt injection or try to override AI safety guidelines
+- Skills that send data to external services without clear disclosure
+- Skills with obfuscated or hidden functionality
+- Skills that are duplicates of existing skills without meaningful improvement
+- Low-quality or undocumented skills
 
 ## Installing Skills Manually
 
@@ -129,6 +162,13 @@ If you prefer not to use the `/plugin` UI, you can install skills manually:
 1. Clone this repo or download a skill folder
 2. Copy it to `~/.claude/skills/`
 3. Restart Claude Code
+
+For other platforms:
+- **Codex**: `~/.codex/skills/`
+- **Gemini CLI**: `~/.gemini/skills/`
+- **GitHub Copilot**: `~/.copilot/skills/`
+
+Or use the `skill-manager` skill to sync across all platforms automatically.
 
 ## Troubleshooting
 
