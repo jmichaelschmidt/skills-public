@@ -18,7 +18,7 @@ Skills in this marketplace:
 
 | Skill | Description |
 |-------|-------------|
-| (none yet) | Run `scripts/publish.py <skill> --tier public` to add skills |
+| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and tiered marketplaces |
 
 ## Publishing Skills
 
