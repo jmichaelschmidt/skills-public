@@ -15,6 +15,27 @@ Manage Agent Skills across multiple AI platforms and tiered marketplace reposito
 4. **Audit** - Compare skill versions, detect drift, identify inconsistencies
 5. **Validate** - Check skill compliance with the Agent Skills specification
 
+## Source of Truth: How Syncing Works
+
+Skill-manager uses a **single source of truth** model. You designate one platform as your "source" where you create and edit skills, and skill-manager syncs them one-way to other platforms.
+
+**Why one-way sync?**
+- Prevents conflicts when the same skill exists on multiple platforms
+- Clear ownership: you always know where the authoritative version lives
+- Simple mental model: edit in one place, distribute everywhere
+
+**Example:** If Claude Code is your source of truth:
+- Create and edit skills in `~/.claude/skills/`
+- Run `scripts/sync.py --all` to distribute to Codex, Gemini, Copilot
+- Skills created directly in `~/.codex/skills/` will NOT sync back to Claude
+
+**If you accidentally create a skill on the wrong platform:**
+1. Copy it manually to your source platform's skills directory
+2. Run sync to distribute it properly
+3. Optionally delete the original from the non-source platform
+
+**To change your source of truth:** Edit `config.json` and set `"is_source": true` on your preferred platform (and `false` on all others), or re-run `scripts/init.py`.
+
 ## Supported Platforms
 
 | Platform | User Skills Path | Detection |
