@@ -12,8 +12,9 @@ Manage Agent Skills across multiple AI platforms and tiered marketplace reposito
 1. **Multi-Platform Sync** - Deploy skills across Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot
 2. **Inventory** - Discover and list all skills across platform locations
 3. **Publish** - Push skills to tiered GitHub marketplace repositories (private/team/public)
-4. **Audit** - Compare skill versions, detect drift, identify inconsistencies
-5. **Validate** - Check skill compliance with the Agent Skills specification
+4. **Marketplace Distribute** - Make marketplace-installed skills available to other AI platforms via symlinks
+5. **Audit** - Compare skill versions, detect drift, identify inconsistencies
+6. **Validate** - Check skill compliance with the Agent Skills specification
 
 ## Source of Truth: How Syncing Works
 
@@ -131,6 +132,35 @@ scripts/marketplace-sync.py
 scripts/marketplace-sync.py --tier team
 scripts/marketplace-sync.py --status
 ```
+
+### Distribute Marketplace Skills to Other Platforms
+
+Make skills from your local marketplace clones available to other AI assistants (Codex, Gemini, Copilot) via symlinks. Claude Code is skipped by default since it has native marketplace access.
+
+```bash
+scripts/marketplace-distribute.py                       # Distribute all marketplace skills
+scripts/marketplace-distribute.py --marketplace team    # Only from team marketplace
+scripts/marketplace-distribute.py --skill my-skill      # Only distribute one skill
+scripts/marketplace-distribute.py --to codex,gemini     # Only to specific platforms
+scripts/marketplace-distribute.py --dry-run             # Preview what would happen
+scripts/marketplace-distribute.py --list                # List available marketplace skills
+scripts/marketplace-distribute.py --status              # Show distribution status
+```
+
+Options:
+- `--marketplace NAME` - Only distribute from specific marketplace
+- `--skill NAME` - Only distribute a specific skill by name
+- `--to PLATFORMS` - Target platforms: codex, gemini, copilot, all
+- `--include-claude` - Also create symlinks for Claude (normally skipped)
+- `--dry-run` - Preview changes without applying
+- `--force` - Overwrite existing skills without prompting
+- `--list` - List available marketplace skills
+- `--status` - Show current distribution status
+
+**How it works:**
+- Scans your local marketplace repo clones (`~/GitHub/skills-*`)
+- Creates symlinks in target platform skill directories pointing to marketplace skills
+- Skips Claude Code by default (it already has access via the plugin system)
 
 ### Audit Skills for Drift
 
