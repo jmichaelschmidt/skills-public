@@ -218,6 +218,115 @@ def update_marketplace_json(repo_path: Path, skill_name: str, skill_description:
     return marketplace['metadata'].get('version', '1.0.0')
 
 
+def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_run: bool = False) -> bool:
+    """Update the README.md to include the skill in the Available Skills table.
+
+    Returns True if the README was updated, False if no update was needed.
+    For new skills, adds an entry to the table.
+    For existing skills, updates the description only if it changed.
+    """
+    readme_path = repo_path / 'README.md'
+
+    if not readme_path.exists():
+        if not dry_run:
+            print(f"  Warning: README.md not found at {readme_path}, skipping README update")
+        return False
+
+    content = readme_path.read_text()
+
+    # Look for the Available Skills table
+    # Format: | [skill-name](skills/skill-name/) | Description |
+    table_marker = "## Available Skills"
+    if table_marker not in content:
+        if not dry_run:
+            print(f"  Warning: No '## Available Skills' section found in README.md, skipping")
+        return False
+
+    # Truncate description for README table (keep it concise)
+    short_description = skill_description
+    if len(short_description) > 200:
+        # Try to cut at a sentence boundary
+        truncated = short_description[:200]
+        last_period = truncated.rfind('.')
+        if last_period > 100:
+            short_description = truncated[:last_period + 1]
+        else:
+            short_description = truncated.rsplit(' ', 1)[0] + '...'
+
+    # Build the new table row
+    new_row = f"| [{skill_name}](skills/{skill_name}/) | {short_description} |"
+
+    # Check if skill already exists in table
+    skill_pattern = f"| [{skill_name}]"
+    skill_link_pattern = f"[{skill_name}](skills/{skill_name}/)"
+
+    if skill_link_pattern in content:
+        # Skill exists - check if description changed
+        lines = content.split('\n')
+        updated = False
+        for i, line in enumerate(lines):
+            if skill_link_pattern in line:
+                if line.strip() != new_row:
+                    lines[i] = new_row
+                    updated = True
+                    if dry_run:
+                        print(f"  [DRY RUN] Would update skill description in README.md")
+                    else:
+                        print(f"  Updated skill description in README.md")
+                break
+
+        if updated and not dry_run:
+            readme_path.write_text('\n'.join(lines))
+        return updated
+
+    # Skill doesn't exist - add it to the table
+    # Find the table and insert in alphabetical order
+    lines = content.split('\n')
+    table_start = None
+    table_header_end = None
+    insert_index = None
+
+    for i, line in enumerate(lines):
+        if table_marker in line:
+            table_start = i
+        elif table_start is not None and line.startswith('|'):
+            if '----' in line:
+                table_header_end = i
+            elif table_header_end is not None:
+                # This is a skill row - check if we should insert before it
+                # Extract skill name from row for alphabetical comparison
+                if line.startswith('| ['):
+                    existing_skill = line.split('](')[0].replace('| [', '')
+                    if skill_name.lower() < existing_skill.lower():
+                        insert_index = i
+                        break
+        elif table_start is not None and table_header_end is not None and not line.startswith('|'):
+            # End of table reached, insert at end
+            insert_index = i
+            break
+
+    if insert_index is None and table_header_end is not None:
+        # Insert after the last row we found
+        for i in range(len(lines) - 1, table_header_end, -1):
+            if lines[i].startswith('|'):
+                insert_index = i + 1
+                break
+
+    if insert_index is None:
+        if not dry_run:
+            print(f"  Warning: Could not find proper location in README.md table, skipping")
+        return False
+
+    if dry_run:
+        print(f"  [DRY RUN] Would add skill to README.md Available Skills table")
+    else:
+        lines.insert(insert_index, new_row)
+        readme_path.write_text('\n'.join(lines))
+        print(f"  Added skill to README.md Available Skills table")
+
+    return True
+
+
 def create_symlink_to_codex(skill_path: Path, skill_name: str, dry_run: bool = False):
     """Create a symlink in the Codex skills directory."""
     codex_skills_dir = Path.home() / '.codex' / 'skills'
@@ -306,7 +415,10 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would update marketplace.json")
 
-    # Step 5: Commit changes
+    # Step 5: Update README.md (optional - only if table exists)
+    update_readme(repo_path, skill_name, description, dry_run)
+
+    # Step 6: Commit changes
     commit_message = custom_message or f"Add {skill_name} skill"
     if not dry_run:
         run_git_command(['add', '.'], repo_path)
@@ -315,14 +427,14 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would commit: {commit_message}")
 
-    # Step 6: Push branch
+    # Step 7: Push branch
     if not dry_run:
         run_git_command(['push', '-u', 'origin', branch_name], repo_path)
         print(f"  Pushed branch to origin")
     else:
         print(f"  [DRY RUN] Would push branch to origin")
 
-    # Step 7: Create PR (unless --no-pr)
+    # Step 8: Create PR (unless --no-pr)
     if not no_pr and not dry_run:
         try:
             pr_result = subprocess.run(
@@ -345,11 +457,11 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     elif not no_pr:
         print(f"  [DRY RUN] Would create PR")
 
-    # Step 8: Symlink to Codex (if enabled)
+    # Step 9: Symlink to Codex (if enabled)
     if config.get('codex_symlink', True):
         create_symlink_to_codex(skill_path, skill_name, dry_run)
 
-    # Step 9: Switch back to main branch
+    # Step 10: Switch back to main branch
     if not dry_run:
         run_git_command(['checkout', 'main'], repo_path)
 

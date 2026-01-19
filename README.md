@@ -69,6 +69,7 @@ Claude will automatically use the skill's instructions to complete the task.
 
 | Skill | Description |
 |-------|-------------|
+| [prd-planner](skills/prd-planner/) | Generate structured PRD planning documents optimized for AI-assisted development. Creates discrete, single-conversation tasks with reasoning level estimates to optimize token usage and model selection. |
 | [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once in Claude Code, then distribute it to Codex, Gemini CLI, and Copilot simultaneously. |
 
 ## Trust & Security
