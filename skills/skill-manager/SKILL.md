@@ -118,10 +118,13 @@ scripts/publish.py ~/.claude/skills/my-skill --tier team
 This will:
 1. Copy the skill to your team marketplace repo
 2. Update marketplace.json
-3. Create a PR for review
-4. Sync to other platforms (if configured)
+3. Update the README.md "Available Skills" table (for new skills)
+4. Create a PR for review
+5. Sync to other platforms (if configured)
 
 If you don't specify `--tier`, you'll be prompted to choose.
+
+**Note on README updates:** When publishing a new skill, the README.md is automatically updated with the skill's entry in the "Available Skills" table. For updates to existing skills, README changes are optional and only made if the skill's description has changed.
 
 ### Sync Marketplace Repos
 
