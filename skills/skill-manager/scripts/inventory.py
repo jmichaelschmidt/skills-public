@@ -9,7 +9,13 @@ Options:
     --platform PLATFORM   Filter by platform: claude, codex, gemini, copilot, all (default: all)
     --format FORMAT       Output format: table, json, yaml (default: table)
     --verbose            Show full paths and metadata
-    --include-marketplace Include marketplace skills (default: user skills only)
+    --source SOURCE      Include sources: all, global, project, marketplace (repeatable)
+    --exclude-source     Exclude sources: global, project, marketplace (repeatable)
+    --global-only        Only show global skills
+    --project-only       Only show project skills
+    --marketplace-only   Only show marketplace skills
+    --no-marketplace     Exclude marketplace skills
+    --include-marketplace Backward-compatible alias (marketplace is included by default)
 """
 
 import argparse
@@ -22,6 +28,7 @@ from typing import Optional
 
 
 CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+ALL_SOURCES = {'global', 'project', 'marketplace'}
 
 # Default platform configuration
 DEFAULT_PLATFORMS = {
@@ -153,10 +160,12 @@ def discover_marketplace_skills(marketplace_dir: Path) -> list:
     return skills
 
 
-def discover_all_skills(platforms: list, include_marketplace: bool = False, config: dict = None) -> dict:
+def discover_all_skills(platforms: list, include_sources: set = None, config: dict = None) -> dict:
     """Discover all skills across specified platforms."""
     paths = get_platform_paths(config)
     results = {}
+    if include_sources is None:
+        include_sources = set(ALL_SOURCES)
 
     for platform in platforms:
         if platform not in paths:
@@ -166,28 +175,29 @@ def discover_all_skills(platforms: list, include_marketplace: bool = False, conf
         platform_name = paths[platform].get('name', platform.upper())
 
         # User skills (global)
-        if 'global' in paths[platform]:
+        if 'global' in include_sources and 'global' in paths[platform]:
             global_skills = discover_skills_in_directory(paths[platform]['global'], 'user')
             for skill in global_skills:
                 skill['location'] = 'global'
             platform_skills.extend(global_skills)
 
         # Marketplace skills (Claude Code primarily)
-        if include_marketplace and 'marketplace' in paths[platform]:
+        if 'marketplace' in include_sources and 'marketplace' in paths[platform]:
             marketplace_skills = discover_marketplace_skills(paths[platform]['marketplace'])
             for skill in marketplace_skills:
                 skill['location'] = 'marketplace'
             platform_skills.extend(marketplace_skills)
 
         # Project skills (check current directory)
-        cwd = Path.cwd()
-        project_skills_dir = cwd / f'.{platform}' / 'skills'
-        if project_skills_dir.exists():
-            project_skills = discover_skills_in_directory(project_skills_dir, 'project')
-            for skill in project_skills:
-                skill['location'] = 'project'
-                skill['project_path'] = str(cwd)
-            platform_skills.extend(project_skills)
+        if 'project' in include_sources:
+            cwd = Path.cwd()
+            project_skills_dir = cwd / f'.{platform}' / 'skills'
+            if project_skills_dir.exists():
+                project_skills = discover_skills_in_directory(project_skills_dir, 'project')
+                for skill in project_skills:
+                    skill['location'] = 'project'
+                    skill['project_path'] = str(cwd)
+                platform_skills.extend(project_skills)
 
         results[platform] = {
             'name': platform_name,
@@ -263,18 +273,108 @@ def format_yaml(results: dict) -> str:
     return '\n'.join(lines)
 
 
+def normalize_legacy_args(argv: list) -> list:
+    """Translate common legacy CLI variants to current flags."""
+    normalized = []
+    i = 0
+
+    while i < len(argv):
+        arg = argv[i]
+
+        # Support: --include marketplace
+        if arg == '--include' and i + 1 < len(argv):
+            value = argv[i + 1].strip().lower()
+            if value == 'marketplace':
+                normalized.append('--include-marketplace')
+                i += 2
+                continue
+
+        # Support: --include=marketplace
+        if arg.startswith('--include='):
+            value = arg.split('=', 1)[1].strip().lower()
+            if value == 'marketplace':
+                normalized.append('--include-marketplace')
+                i += 1
+                continue
+
+        normalized.append(arg)
+        i += 1
+
+    return normalized
+
+
+def resolve_sources(args) -> set:
+    """Resolve include/exclude source flags into the final source set."""
+    if args.source and 'all' not in args.source:
+        include_sources = set(args.source)
+    else:
+        include_sources = set(ALL_SOURCES)
+
+    if args.global_only:
+        include_sources = {'global'}
+    if args.project_only:
+        include_sources = {'project'}
+    if args.marketplace_only:
+        include_sources = {'marketplace'}
+
+    # Backward-compatible flag. Marketplace is already included by default.
+    if args.include_marketplace:
+        include_sources.add('marketplace')
+
+    if args.no_marketplace:
+        include_sources.discard('marketplace')
+
+    if args.exclude_source:
+        include_sources -= set(args.exclude_source)
+
+    return include_sources
+
+
+class SkillInventoryParser(argparse.ArgumentParser):
+    """ArgumentParser with actionable error guidance for common mistakes."""
+
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        print(f"{self.prog}: error: {message}", file=sys.stderr)
+
+        if '--include' in message or 'unrecognized arguments' in message:
+            print(
+                "Hint: use --include-marketplace "
+                "(legacy aliases --include marketplace and --include=marketplace are supported).",
+                file=sys.stderr
+            )
+
+        print(
+            "Example: inventory.py --platform claude --source marketplace",
+            file=sys.stderr
+        )
+        self.exit(2)
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Discover and list Agent Skills across platforms')
+    parser = SkillInventoryParser(description='Discover and list Agent Skills across platforms')
     parser.add_argument('--platform', choices=['claude', 'codex', 'gemini', 'copilot', 'all'], default='all',
                         help='Platform to search (default: all)')
     parser.add_argument('--format', choices=['table', 'json', 'yaml'], default='table',
                         help='Output format (default: table)')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show full paths and metadata')
+    parser.add_argument('--source', action='append', choices=['all', 'global', 'project', 'marketplace'],
+                        help='Include only selected source(s). Repeatable.')
+    parser.add_argument('--exclude-source', action='append', choices=['global', 'project', 'marketplace'],
+                        help='Exclude selected source(s). Repeatable.')
+    parser.add_argument('--global-only', action='store_true',
+                        help='Only show global skills')
+    parser.add_argument('--project-only', action='store_true',
+                        help='Only show project skills')
+    parser.add_argument('--marketplace-only', action='store_true',
+                        help='Only show marketplace skills')
+    parser.add_argument('--no-marketplace', action='store_true',
+                        help='Exclude marketplace skills')
     parser.add_argument('--include-marketplace', action='store_true',
-                        help='Include marketplace skills')
+                        help='Backward-compatible alias; marketplace is included by default')
 
-    args = parser.parse_args()
+    args = parser.parse_args(normalize_legacy_args(sys.argv[1:]))
 
     # Load config
     config = load_config()
@@ -285,8 +385,10 @@ def main():
     else:
         platforms = [args.platform]
 
+    include_sources = resolve_sources(args)
+
     # Discover skills
-    results = discover_all_skills(platforms, args.include_marketplace, config)
+    results = discover_all_skills(platforms, include_sources, config)
 
     # Format and output
     if args.format == 'json':

@@ -109,7 +109,7 @@ def get_local_repo_path(config: dict, marketplace: str) -> Path:
         if repo_name.endswith('.git'):
             repo_name = repo_name[:-4]
         return base_path / repo_name
-    return base_path / f"skills-{marketplace}"
+    return base_path / marketplace
 
 
 def discover_marketplace_skills(config: dict, marketplace_filter: str = None) -> list:
