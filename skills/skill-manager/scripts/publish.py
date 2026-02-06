@@ -7,6 +7,7 @@ Usage:
 
 Options:
     --to MARKETPLACE    Target marketplace name from config (prompts if not specified)
+    --branch BRANCH     Use this branch as the base branch (defaults to remote HEAD)
     --dry-run           Preview changes without applying
     --no-pr             Skip creating a pull request (just push to branch)
     --message MSG       Custom commit message
@@ -20,7 +21,6 @@ Examples:
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -42,28 +42,22 @@ def load_config() -> dict:
         return json.load(f)
 
 
-def save_config(config: dict):
-    """Save marketplace configuration."""
-    with open(CONFIG_PATH, 'w') as f:
-        json.dump(config, f, indent=2)
+def parse_repo_name(repo_url: str) -> str:
+    """Extract repo name from a URL and strip optional .git."""
+    repo_name = repo_url.rstrip('/').split('/')[-1]
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+    return repo_name
 
 
 def get_local_repo_path(config: dict, marketplace: str) -> Path:
-    """Get the local clone path for a marketplace repo.
-
-    Derives the folder name from the repo URL (e.g., 'skills-team' from
-    'https://github.com/org/skills-team').
-    """
+    """Get the local clone path for a marketplace repo."""
     base_path = Path(config['local_repos_path']).expanduser()
     repo_url = config['marketplaces'][marketplace].get('repo', '')
     if repo_url:
-        # Extract repo name from URL (last part of path, minus .git if present)
-        repo_name = repo_url.rstrip('/').split('/')[-1]
-        if repo_name.endswith('.git'):
-            repo_name = repo_name[:-4]
-        return base_path / repo_name
-    # Fallback to default naming if no URL configured
-    return base_path / f"skills-{marketplace}"
+        return base_path / parse_repo_name(repo_url)
+    # Marketplace key is a safer fallback than assuming skills-{key}
+    return base_path / marketplace
 
 
 def validate_source_skill(skill_path: Path) -> tuple:
@@ -121,8 +115,7 @@ def prompt_for_marketplace(config: dict) -> str:
         response = input(f"\nSelect marketplace (1-{len(configured)} or name): ").strip().lower()
         if response in name_map:
             return name_map[response]
-        else:
-            print(f"Invalid selection. Please enter 1-{len(configured)} or marketplace name.")
+        print(f"Invalid selection. Please enter 1-{len(configured)} or marketplace name.")
 
 
 def run_git_command(args: list, cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
@@ -140,36 +133,102 @@ def run_git_command(args: list, cwd: Path, check: bool = True) -> subprocess.Com
     return result
 
 
-def ensure_repo_cloned(config: dict, marketplace: str) -> Path:
-    """Ensure the marketplace repo is cloned locally."""
+def detect_default_branch(repo_path: Path, remote: str = 'origin') -> str:
+    """Detect repository default branch from origin/HEAD."""
+    symbolic = run_git_command(
+        ['symbolic-ref', f'refs/remotes/{remote}/HEAD'],
+        repo_path,
+        check=False
+    )
+    if symbolic.returncode == 0:
+        head_ref = symbolic.stdout.strip()
+        if head_ref:
+            return head_ref.rsplit('/', 1)[-1]
+
+    remote_show = run_git_command(['remote', 'show', remote], repo_path, check=False)
+    if remote_show.returncode == 0:
+        for line in remote_show.stdout.splitlines():
+            line = line.strip()
+            if line.startswith('HEAD branch:'):
+                branch = line.split(':', 1)[1].strip()
+                if branch and branch != '(unknown)':
+                    return branch
+
+    current = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], repo_path, check=False)
+    if current.returncode == 0:
+        branch = current.stdout.strip()
+        if branch and branch != 'HEAD':
+            return branch
+
+    return 'main'
+
+
+def has_uncommitted_changes(repo_path: Path) -> bool:
+    """Return True when git status has tracked or untracked changes."""
+    status = run_git_command(['status', '--porcelain'], repo_path, check=False)
+    return bool(status.stdout.strip())
+
+
+def ensure_repo_cloned(config: dict, marketplace: str, branch_override: str = None) -> tuple[Path, str]:
+    """Ensure the marketplace repo is cloned locally and synced to base branch."""
     repo_url = config['marketplaces'][marketplace]['repo']
     if not repo_url:
         print(f"ERROR: No repository configured for marketplace '{marketplace}'")
-        print(f"Run 'scripts/init.py' to configure your marketplace repositories.")
+        print("Run 'scripts/init.py' to configure your marketplace repositories.")
         sys.exit(1)
 
     local_path = get_local_repo_path(config, marketplace)
 
     if local_path.exists():
-        # Pull latest
+        if has_uncommitted_changes(local_path):
+            print(f"ERROR: Uncommitted changes detected in {local_path}")
+            print("Commit or stash those changes before running publish.")
+            sys.exit(1)
+
         print(f"Updating local repo: {local_path}")
         run_git_command(['fetch', 'origin'], local_path)
-        run_git_command(['checkout', 'main'], local_path, check=False)
-        run_git_command(['pull', 'origin', 'main'], local_path, check=False)
     else:
-        # Clone
         print(f"Cloning {repo_url} to {local_path}")
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            ['git', 'clone', repo_url, str(local_path)],
-            check=True
-        )
+        subprocess.run(['git', 'clone', repo_url, str(local_path)], check=True)
+        run_git_command(['fetch', 'origin'], local_path, check=False)
 
-    return local_path
+    base_branch = branch_override or detect_default_branch(local_path)
+
+    checkout_result = run_git_command(['checkout', base_branch], local_path, check=False)
+    if checkout_result.returncode != 0:
+        print(f"ERROR: Could not check out base branch '{base_branch}' in {local_path}")
+        print("Use --branch to select a different base branch.")
+        sys.exit(1)
+
+    run_git_command(['pull', 'origin', base_branch], local_path, check=False)
+    return local_path, base_branch
+
+
+def resolve_plugin_name(marketplace: dict, repo_path: Path) -> str:
+    """Derive plugin name from existing manifest instead of marketplace key assumptions."""
+    plugins = marketplace.get('plugins') or []
+    if len(plugins) == 1 and plugins[0].get('name'):
+        return plugins[0]['name']
+
+    manifest_name = marketplace.get('name')
+    if manifest_name:
+        for plugin in plugins:
+            if plugin.get('name') == manifest_name:
+                return plugin['name']
+
+    for plugin in plugins:
+        if plugin.get('source') == './' and plugin.get('name'):
+            return plugin['name']
+
+    if manifest_name:
+        return manifest_name
+
+    return repo_path.name
 
 
 def update_marketplace_json(repo_path: Path, skill_name: str, skill_description: str, marketplace_name: str, config: dict):
-    """Update the marketplace.json to include the new skill."""
+    """Update marketplace.json to include the new skill and return version."""
     marketplace_json_path = repo_path / '.claude-plugin' / 'marketplace.json'
 
     if not marketplace_json_path.exists():
@@ -180,16 +239,15 @@ def update_marketplace_json(repo_path: Path, skill_name: str, skill_description:
     with open(marketplace_json_path) as f:
         marketplace = json.load(f)
 
-    # Find or create the plugin entry
-    plugin_name = f"skills-{marketplace_name}"
+    plugin_name = resolve_plugin_name(marketplace, repo_path)
+
     plugin = None
-    for p in marketplace.get('plugins', []):
-        if p['name'] == plugin_name:
-            plugin = p
+    for entry in marketplace.get('plugins', []):
+        if entry.get('name') == plugin_name:
+            plugin = entry
             break
 
     if plugin is None:
-        # Create new plugin entry
         plugin = {
             'name': plugin_name,
             'description': config['marketplaces'][marketplace_name]['description'],
@@ -199,13 +257,11 @@ def update_marketplace_json(repo_path: Path, skill_name: str, skill_description:
         }
         marketplace.setdefault('plugins', []).append(plugin)
 
-    # Add skill if not already present
     skill_path = f"./skills/{skill_name}"
     if skill_path not in plugin.get('skills', []):
         plugin.setdefault('skills', []).append(skill_path)
         plugin['skills'].sort()
 
-    # Bump version
     if 'metadata' in marketplace:
         version = marketplace['metadata'].get('version', '1.0.0')
         parts = version.split('.')
@@ -215,16 +271,11 @@ def update_marketplace_json(repo_path: Path, skill_name: str, skill_description:
     with open(marketplace_json_path, 'w') as f:
         json.dump(marketplace, f, indent=2)
 
-    return marketplace['metadata'].get('version', '1.0.0')
+    return marketplace.get('metadata', {}).get('version', '1.0.0')
 
 
 def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_run: bool = False) -> bool:
-    """Update the README.md to include the skill in the Available Skills table.
-
-    Returns True if the README was updated, False if no update was needed.
-    For new skills, adds an entry to the table.
-    For existing skills, updates the description only if it changed.
-    """
+    """Update README Available Skills table. Returns True if README changed."""
     readme_path = repo_path / 'README.md'
 
     if not readme_path.exists():
@@ -233,19 +284,14 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
         return False
 
     content = readme_path.read_text()
-
-    # Look for the Available Skills table
-    # Format: | [skill-name](skills/skill-name/) | Description |
     table_marker = "## Available Skills"
     if table_marker not in content:
         if not dry_run:
-            print(f"  Warning: No '## Available Skills' section found in README.md, skipping")
+            print("  Warning: No '## Available Skills' section found in README.md, skipping")
         return False
 
-    # Truncate description for README table (keep it concise)
     short_description = skill_description
     if len(short_description) > 200:
-        # Try to cut at a sentence boundary
         truncated = short_description[:200]
         last_period = truncated.rfind('.')
         if last_period > 100:
@@ -253,15 +299,10 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
         else:
             short_description = truncated.rsplit(' ', 1)[0] + '...'
 
-    # Build the new table row
     new_row = f"| [{skill_name}](skills/{skill_name}/) | {short_description} |"
-
-    # Check if skill already exists in table
-    skill_pattern = f"| [{skill_name}]"
     skill_link_pattern = f"[{skill_name}](skills/{skill_name}/)"
 
     if skill_link_pattern in content:
-        # Skill exists - check if description changed
         lines = content.split('\n')
         updated = False
         for i, line in enumerate(lines):
@@ -270,17 +311,15 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
                     lines[i] = new_row
                     updated = True
                     if dry_run:
-                        print(f"  [DRY RUN] Would update skill description in README.md")
+                        print("  [DRY RUN] Would update skill description in README.md")
                     else:
-                        print(f"  Updated skill description in README.md")
+                        print("  Updated skill description in README.md")
                 break
 
         if updated and not dry_run:
             readme_path.write_text('\n'.join(lines))
         return updated
 
-    # Skill doesn't exist - add it to the table
-    # Find the table and insert in alphabetical order
     lines = content.split('\n')
     table_start = None
     table_header_end = None
@@ -292,21 +331,16 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
         elif table_start is not None and line.startswith('|'):
             if '----' in line:
                 table_header_end = i
-            elif table_header_end is not None:
-                # This is a skill row - check if we should insert before it
-                # Extract skill name from row for alphabetical comparison
-                if line.startswith('| ['):
-                    existing_skill = line.split('](')[0].replace('| [', '')
-                    if skill_name.lower() < existing_skill.lower():
-                        insert_index = i
-                        break
+            elif table_header_end is not None and line.startswith('| ['):
+                existing_skill = line.split('](')[0].replace('| [', '')
+                if skill_name.lower() < existing_skill.lower():
+                    insert_index = i
+                    break
         elif table_start is not None and table_header_end is not None and not line.startswith('|'):
-            # End of table reached, insert at end
             insert_index = i
             break
 
     if insert_index is None and table_header_end is not None:
-        # Insert after the last row we found
         for i in range(len(lines) - 1, table_header_end, -1):
             if lines[i].startswith('|'):
                 insert_index = i + 1
@@ -314,15 +348,15 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
 
     if insert_index is None:
         if not dry_run:
-            print(f"  Warning: Could not find proper location in README.md table, skipping")
+            print("  Warning: Could not find proper location in README.md table, skipping")
         return False
 
     if dry_run:
-        print(f"  [DRY RUN] Would add skill to README.md Available Skills table")
+        print("  [DRY RUN] Would add skill to README.md Available Skills table")
     else:
         lines.insert(insert_index, new_row)
         readme_path.write_text('\n'.join(lines))
-        print(f"  Added skill to README.md Available Skills table")
+        print("  Added skill to README.md Available Skills table")
 
     return True
 
@@ -348,14 +382,21 @@ def create_symlink_to_codex(skill_path: Path, skill_name: str, dry_run: bool = F
     print(f"  Symlinked to Codex: {codex_skill_path} -> {skill_path}")
 
 
+def repo_slug_from_url(repo_url: str) -> str:
+    """Return owner/repo from a URL."""
+    clean = repo_url.rstrip('/').replace('.git', '')
+    parts = clean.split('/')
+    if len(parts) >= 2:
+        return f"{parts[-2]}/{parts[-1]}"
+    return clean
+
+
 def publish_skill(skill_path: Path, marketplace: str, config: dict,
                   dry_run: bool = False, no_pr: bool = False,
-                  custom_message: str = None) -> dict:
+                  custom_message: str = None, branch_override: str = None) -> dict:
     """Publish a skill to the specified marketplace."""
-
     skill_name = parse_skill_name(skill_path)
 
-    # Read description from SKILL.md
     skill_md = skill_path / 'SKILL.md'
     content = skill_md.read_text()
     description = ""
@@ -378,25 +419,26 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
         'marketplace': marketplace,
         'success': False,
         'pr_url': None,
-        'version': None
+        'version': None,
+        'base_branch': None,
     }
 
-    # Step 1: Ensure repo is cloned and up to date
     if not dry_run:
-        repo_path = ensure_repo_cloned(config, marketplace)
+        repo_path, base_branch = ensure_repo_cloned(config, marketplace, branch_override)
     else:
         repo_path = get_local_repo_path(config, marketplace)
+        base_branch = branch_override or 'remote-default'
         print(f"  [DRY RUN] Would clone/update repo at {repo_path}")
 
-    # Step 2: Create branch
-    branch_name = f"add-{skill_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    if not dry_run:
-        run_git_command(['checkout', '-b', branch_name], repo_path)
-        print(f"  Created branch: {branch_name}")
-    else:
-        print(f"  [DRY RUN] Would create branch: {branch_name}")
+    results['base_branch'] = base_branch
 
-    # Step 3: Copy skill to repo
+    branch_name = f"publish-{skill_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    if not dry_run:
+        run_git_command(['checkout', '-B', branch_name, base_branch], repo_path)
+        print(f"  Created branch: {branch_name} (from {base_branch})")
+    else:
+        print(f"  [DRY RUN] Would create branch: {branch_name} from {base_branch}")
+
     target_skill_path = repo_path / 'skills' / skill_name
     if not dry_run:
         target_skill_path.parent.mkdir(parents=True, exist_ok=True)
@@ -407,18 +449,15 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would copy skill to: {target_skill_path}")
 
-    # Step 4: Update marketplace.json
     if not dry_run:
         new_version = update_marketplace_json(repo_path, skill_name, description, marketplace, config)
         results['version'] = new_version
         print(f"  Updated marketplace.json (version: {new_version})")
     else:
-        print(f"  [DRY RUN] Would update marketplace.json")
+        print("  [DRY RUN] Would update marketplace.json")
 
-    # Step 5: Update README.md (optional - only if table exists)
     update_readme(repo_path, skill_name, description, dry_run)
 
-    # Step 6: Commit changes
     commit_message = custom_message or f"Add {skill_name} skill"
     if not dry_run:
         run_git_command(['add', '.'], repo_path)
@@ -427,18 +466,17 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would commit: {commit_message}")
 
-    # Step 7: Push branch
     if not dry_run:
         run_git_command(['push', '-u', 'origin', branch_name], repo_path)
-        print(f"  Pushed branch to origin")
+        print("  Pushed branch to origin")
     else:
-        print(f"  [DRY RUN] Would push branch to origin")
+        print("  [DRY RUN] Would push branch to origin")
 
-    # Step 8: Create PR (unless --no-pr)
     if not no_pr and not dry_run:
         try:
             pr_result = subprocess.run(
                 ['gh', 'pr', 'create',
+                 '--base', base_branch,
                  '--title', f"Add {skill_name} skill",
                  '--body', f"## Summary\n\nAdds the `{skill_name}` skill to the {marketplace} marketplace.\n\n**Description:** {description[:200]}"],
                 cwd=repo_path,
@@ -451,19 +489,17 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
                 print(f"  Created PR: {pr_url}")
             else:
                 print(f"  Warning: Could not create PR via gh CLI: {pr_result.stderr}")
-                print(f"  You can create it manually at the repository.")
+                print("  You can create it manually at the repository.")
         except FileNotFoundError:
             print("  Warning: gh CLI not found. Create PR manually.")
     elif not no_pr:
-        print(f"  [DRY RUN] Would create PR")
+        print("  [DRY RUN] Would create PR")
 
-    # Step 9: Symlink to Codex (if enabled)
     if config.get('codex_symlink', True):
         create_symlink_to_codex(skill_path, skill_name, dry_run)
 
-    # Step 10: Switch back to main branch
     if not dry_run:
-        run_git_command(['checkout', 'main'], repo_path)
+        run_git_command(['checkout', base_branch], repo_path)
 
     results['success'] = True
     return results
@@ -475,6 +511,8 @@ def main():
                         help='Path to the skill directory to publish')
     parser.add_argument('--to', dest='marketplace',
                         help='Target marketplace name from config (prompts if not specified)')
+    parser.add_argument('--branch',
+                        help='Base branch override (defaults to remote HEAD branch)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Preview changes without applying')
     parser.add_argument('--no-pr', action='store_true',
@@ -484,51 +522,44 @@ def main():
 
     args = parser.parse_args()
 
-    # Load config
     config = load_config()
-
-    # Resolve skill path
     skill_path = args.skill_path.resolve()
 
-    # Validate source
     valid, message = validate_source_skill(skill_path)
     if not valid:
         print(f"ERROR: {message}")
         sys.exit(1)
 
-    # Get marketplace (prompt if not specified)
     marketplace = args.marketplace
     if not marketplace:
         marketplace = prompt_for_marketplace(config)
 
-    # Check if marketplace exists in config
     if marketplace not in config.get('marketplaces', {}):
         print(f"\nERROR: Marketplace '{marketplace}' not found in config.")
         print(f"Available marketplaces: {', '.join(config.get('marketplaces', {}).keys())}")
         sys.exit(1)
 
-    # Check if repo is configured
     if not config['marketplaces'][marketplace].get('repo'):
         print(f"\nERROR: No repository configured for marketplace '{marketplace}'")
-        print(f"Run 'scripts/init.py' to configure your marketplace repositories.")
+        print("Run 'scripts/init.py' to configure your marketplace repositories.")
         sys.exit(1)
 
-    # Publish
     results = publish_skill(
         skill_path,
         marketplace,
         config,
         dry_run=args.dry_run,
         no_pr=args.no_pr,
-        custom_message=args.message
+        custom_message=args.message,
+        branch_override=args.branch,
     )
 
-    # Summary
     print("\n" + "=" * 50)
     print("PUBLISH SUMMARY")
     print("=" * 50)
     print(f"Skill: {results['skill_name']}")
     print(f"Marketplace: {results['marketplace']}")
+    print(f"Base Branch: {results['base_branch']}")
     print(f"Success: {'Yes' if results['success'] else 'No'}")
     if results['version']:
         print(f"Marketplace Version: {results['version']}")
@@ -536,13 +567,16 @@ def main():
         print(f"PR URL: {results['pr_url']}")
 
     if results['success'] and not args.dry_run:
+        repo_url = config['marketplaces'][results['marketplace']].get('repo', '')
+        repo_slug = repo_slug_from_url(repo_url)
+
         print("\n" + "-" * 50)
         print("NEXT STEPS:")
         print("-" * 50)
         if results['pr_url']:
             print(f"1. Review and merge the PR: {results['pr_url']}")
         print(f"2. Once merged, users can install via:")
-        print(f"   /plugin marketplace add <your-org>/skills-{marketplace}")
+        print(f"   /plugin marketplace add {repo_slug}")
         print("-" * 50)
 
     sys.exit(0 if results['success'] else 1)

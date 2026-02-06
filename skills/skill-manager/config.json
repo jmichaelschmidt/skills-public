@@ -42,6 +42,11 @@
       "repo": "https://github.com/jmichaelschmidt/skills-plumwheel",
       "description": "Skills for Plumwheel project",
       "visibility": "private"
+    },
+    "three-dna": {
+      "repo": "https://github.com/3dna/skills",
+      "description": "Private 3DNA team marketplace",
+      "visibility": "private"
     }
   },
   "owner": {

@@ -1,6 +1,6 @@
 ---
 name: skill-manager
-description: Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and tiered marketplaces. Use when users want to list skills, sync between platforms, publish skills to private/team/public marketplaces, audit skill versions, or set up their environment. Triggers on phrases like "list skills", "sync skills", "publish skill", "skill marketplace", "deploy skill", "audit skills", or "skill inventory".
+description: Manage, sync, and publish Agent Skills across multiple AI platforms (Claude, Codex, Gemini, Copilot) and marketplace repositories. Use when users want to list skills, sync between platforms, publish to marketplace keys, mirror canonical skills, audit drift, or set up their environment. Triggers on phrases like "list skills", "sync skills", "publish skill", "skill marketplace", "deploy skill", "audit skills", or "skill inventory".
 ---
 
 # Skill Manager
@@ -96,23 +96,31 @@ Options:
 - `--platform claude|codex|gemini|copilot|all` - Filter by platform
 - `--format table|json|yaml` - Output format
 - `--verbose` - Show full paths and metadata
+- `--source global|project|marketplace` - Include selected source(s), repeatable
+- `--exclude-source global|project|marketplace` - Exclude selected source(s), repeatable
+- `--global-only|--project-only|--marketplace-only` - Single-source shortcuts
+- `--no-marketplace` - Exclude marketplace entries
+- `--include-marketplace` - Backward-compatible alias (marketplace is already included by default)
 
-## Tiered Marketplace System
+### Inventory Behavior
 
-Skills can be published to three tiers with different access levels:
+- Default `scripts/inventory.py` output includes all discovered sources:
+  - global skills
+  - project skills
+  - marketplace skills
+- Use source flags only when you want to narrow results.
+- Legacy include forms remain supported:
+  - `--include-marketplace`
+  - `--include marketplace`
+  - `--include=marketplace`
+## Marketplace System
 
-| Tier | Visibility | Use Case |
-|------|-----------|----------|
-| **Private** | Only you | Personal/experimental skills |
-| **Team** | Collaborators | Shared skills for your team |
-| **Public** | Anyone | Open source skills for the community |
-
-Each tier is a separate GitHub repository that functions as a Claude Code marketplace.
+`skill-manager` works with marketplace keys from `config.json` (for example: `private`, `team`, `public`, `three-dna`, `enterprise-core`). Keys are identifiers only; repository names and plugin names can be arbitrary.
 
 ### Publish a Skill
 
 ```bash
-scripts/publish.py ~/.claude/skills/my-skill --tier team
+scripts/publish.py ~/.claude/skills/my-skill --to team
 ```
 
 This will:
@@ -122,7 +130,7 @@ This will:
 4. Create a PR for review
 5. Sync to other platforms (if configured)
 
-If you don't specify `--tier`, you'll be prompted to choose.
+If you don't specify `--to`, you'll be prompted to choose.
 
 **Note on README updates:** When publishing a new skill, the README.md is automatically updated with the skill's entry in the "Available Skills" table. For updates to existing skills, README changes are optional and only made if the skill's description has changed.
 
@@ -132,8 +140,27 @@ Pull latest from your marketplace repositories:
 
 ```bash
 scripts/marketplace-sync.py
-scripts/marketplace-sync.py --tier team
+scripts/marketplace-sync.py --marketplace team
 scripts/marketplace-sync.py --status
+scripts/marketplace-sync.py --branch master
+scripts/marketplace-sync.py --auto-stash
+```
+
+### Mirror Canonical Skills to Another Marketplace
+
+Mirror from a canonical source ref (`tag`, `branch`, or `commit`) into a target marketplace with manifest and README updates:
+
+```bash
+scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref v1.2.0
+scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref 8ab12cd --skill skill-manager
+scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref main --dry-run
+```
+
+Generate drift reports at any time:
+
+```bash
+scripts/marketplace-mirror.py drift --from public --to three-dna
+scripts/marketplace-mirror.py drift --from public --to three-dna --source-ref v1.2.0
 ```
 
 ### Distribute Marketplace Skills to Other Platforms
@@ -161,7 +188,7 @@ Options:
 - `--status` - Show current distribution status
 
 **How it works:**
-- Scans your local marketplace repo clones (`~/GitHub/skills-*`)
+- Scans your local marketplace repo clones under `local_repos_path` from `config.json`
 - Creates symlinks in target platform skill directories pointing to marketplace skills
 - Skips Claude Code by default (it already has access via the plugin system)
 
@@ -176,6 +203,22 @@ scripts/audit.py --all
 
 ```bash
 scripts/validate.py <skill-path>
+```
+
+### Operator Quick Commands
+
+```bash
+# List
+scripts/inventory.py
+
+# Publish
+scripts/publish.py ~/.claude/skills/my-skill --to team
+
+# Mirror
+scripts/marketplace-mirror.py mirror --from public --to team --source-ref main --skill my-skill
+
+# Audit/drift
+scripts/marketplace-mirror.py drift --from public --to team
 ```
 
 ## Configuration
@@ -238,7 +281,7 @@ Configuration is stored in `config.json`:
 |-------|-------------|
 | `platforms` | Platform configurations (enabled, path, source) |
 | `sync_mode` | Default sync mode: `symlink` or `copy` |
-| `marketplaces` | GitHub repo URLs for each tier |
+| `marketplaces` | GitHub repo URLs keyed by marketplace name |
 | `owner` | Your name and email for commits |
 | `local_repos_path` | Where marketplace repos are cloned |
 
@@ -247,7 +290,7 @@ Configuration is stored in `config.json`:
 Each marketplace repo follows this structure:
 
 ```
-skills-{tier}/
+<repository-name>/
 ├── .claude-plugin/
 │   └── marketplace.json    # Plugin catalog
 ├── skills/
@@ -310,7 +353,7 @@ scripts/validate.py ~/.claude/skills/my-skill
 ### Step 3: Publish
 
 ```bash
-scripts/publish.py ~/.claude/skills/my-skill --tier team
+scripts/publish.py ~/.claude/skills/my-skill --to team
 ```
 
 ### Step 4: Merge PR
@@ -322,7 +365,7 @@ Review and merge the PR created in your marketplace repo.
 Users add your marketplace and install:
 
 ```
-/plugin marketplace add your-org/skills-team
+/plugin marketplace add your-org/your-marketplace-repo
 ```
 
 Then browse skills in the `/plugin` UI under the Discover tab.

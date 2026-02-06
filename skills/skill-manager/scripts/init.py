@@ -118,7 +118,48 @@ def get_local_repo_path(config: dict, marketplace: str) -> Path:
         if repo_name.endswith('.git'):
             repo_name = repo_name[:-4]
         return base_path / repo_name
-    return base_path / f"skills-{marketplace}"
+    return base_path / marketplace
+
+
+def detect_default_branch(repo_path: Path, remote: str = 'origin') -> str:
+    """Detect default branch from remote HEAD."""
+    symbolic = subprocess.run(
+        ['git', 'symbolic-ref', f'refs/remotes/{remote}/HEAD'],
+        cwd=repo_path,
+        capture_output=True,
+        text=True
+    )
+    if symbolic.returncode == 0:
+        ref = symbolic.stdout.strip()
+        if ref:
+            return ref.rsplit('/', 1)[-1]
+
+    remote_show = subprocess.run(
+        ['git', 'remote', 'show', remote],
+        cwd=repo_path,
+        capture_output=True,
+        text=True
+    )
+    if remote_show.returncode == 0:
+        for line in remote_show.stdout.splitlines():
+            line = line.strip()
+            if line.startswith('HEAD branch:'):
+                branch = line.split(':', 1)[1].strip()
+                if branch and branch != '(unknown)':
+                    return branch
+
+    current = subprocess.run(
+        ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        cwd=repo_path,
+        capture_output=True,
+        text=True
+    )
+    if current.returncode == 0:
+        branch = current.stdout.strip()
+        if branch and branch != 'HEAD':
+            return branch
+
+    return 'main'
 
 
 def detect_platforms() -> dict:
@@ -369,7 +410,9 @@ def clone_or_init_repo(url: str, local_path: Path, marketplace_name: str, config
                 ['git', 'commit', '-m', 'Initialize marketplace structure'],
                 cwd=local_path
             )
-            subprocess.run(['git', 'push', 'origin', 'main'], cwd=local_path, capture_output=True)
+            branch = detect_default_branch(local_path)
+            subprocess.run(['git', 'checkout', '-B', branch], cwd=local_path, capture_output=True)
+            subprocess.run(['git', 'push', '-u', 'origin', branch], cwd=local_path, capture_output=True)
             print(f"  Pushed initial structure to remote")
 
         return True
@@ -527,7 +570,7 @@ def setup_marketplaces(config: dict, args) -> dict:
     # Configure existing marketplaces
     for mkt_name, mkt_config in list(config.get('marketplaces', {}).items()):
         existing_url = mkt_config.get('repo', '')
-        default_url = existing_url or f"https://github.com/{default_org}/skills-{mkt_name}"
+        default_url = existing_url or f"https://github.com/{default_org}/{mkt_name}"
 
         print(f"\n{mkt_name.upper()}:")
         url = prompt_with_default(f"  Repository URL (blank to skip)", default_url)
@@ -548,7 +591,7 @@ def setup_marketplaces(config: dict, args) -> dict:
 
         new_desc = prompt_with_default(f"  Description", f"Skills for {new_name}")
         new_visibility = prompt_choice("  Visibility:", ['private', 'public'], 'private')
-        new_url = prompt_with_default(f"  Repository URL", f"https://github.com/{github_username}/skills-{new_name}")
+        new_url = prompt_with_default(f"  Repository URL", f"https://github.com/{github_username}/{new_name}")
 
         config['marketplaces'][new_name] = {
             'repo': new_url,
