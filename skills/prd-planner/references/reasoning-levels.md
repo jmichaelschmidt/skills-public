@@ -2,9 +2,50 @@
 
 Match model capability to task complexity to optimize token usage and cost.
 
+`Reasoning effort` is the primary field. Vendor model hints are secondary and may differ by environment.
+
+## Special Case: Thread 0 (Investigation)
+
+Before assigning reasoning levels to implementation threads, consider whether you need a **Thread 0 — Investigation** first.
+
+### When to Use Thread 0
+
+| Situation | Use Thread 0? | Why |
+|-----------|---------------|-----|
+| Bug with clear reproduction steps | No | Jump to fix |
+| Bug with vague symptoms ("it's slow") | **Yes** | Need to profile/trace first |
+| Feature request, clear requirements | No | Jump to implementation |
+| Feature request, might already exist | **Yes** | Search codebase first |
+| Performance issue, no metrics | **Yes** | Need profiling data |
+| Error in logs, cause unknown | **Yes** | Need to trace code path |
+
+### Thread 0 Reasoning Level
+
+Always **Medium-High**:
+- Requires reading multiple files to trace execution
+- May need to form hypotheses and test them
+- Output shapes all subsequent threads
+
+Vendor hints:
+- Claude: Sonnet or Opus
+- OpenAI: GPT-5.4 high
+
+### Thread 0 Output
+
+Thread 0 produces a **report**, not code. The report should contain:
+1. Steps to reproduce (if applicable)
+2. Root cause analysis (confirmed or candidates)
+3. Recommended fix approach
+4. Files that will need changes
+5. Risks or complications discovered
+
+This report becomes the foundation for Thread 1's design.
+
+---
+
 ## Level Definitions
 
-### Minimal — Haiku Recommended
+### Minimal
 
 **Characteristics**:
 - Procedural tasks with clear steps
@@ -23,15 +64,21 @@ Match model capability to task complexity to optimize token usage and cost.
 **Thread example**:
 ```markdown
 ### Thread 1 — Add platform column to CSV export — Reasoning Effort: minimal
+- **Claude hint**: Haiku
+- **OpenAI hint**: GPT-5.4 low
 - **Purpose**: Include platform field in CSV download
 - **Actions**: Add 'platform' as first column in CSV export function
 - **Reference material**: `admin_api/routers/uploads.py:430-475`
 - **Validation**: Download CSV, verify platform column exists
 ```
 
+**Vendor hints**:
+- Claude: Haiku
+- OpenAI: GPT-5.4 low
+
 ---
 
-### Low — Haiku or Sonnet Recommended
+### Low
 
 **Characteristics**:
 - Clear existing patterns to follow
@@ -50,6 +97,8 @@ Match model capability to task complexity to optimize token usage and cost.
 **Thread example**:
 ```markdown
 ### Thread 3 — Add platform filter to posts page — Reasoning Effort: low
+- **Claude hint**: Haiku or Sonnet
+- **OpenAI hint**: GPT-5.4 low
 - **Purpose**: Enable filtering posts by platform
 - **Actions**:
   - Add platform query parameter to router
@@ -61,9 +110,13 @@ Match model capability to task complexity to optimize token usage and cost.
 - **Validation**: Filter by platform, verify results match
 ```
 
+**Vendor hints**:
+- Claude: Haiku or Sonnet
+- OpenAI: GPT-5.4 low
+
 ---
 
-### Medium — Sonnet Recommended
+### Medium
 
 **Characteristics**:
 - Code comprehension required
@@ -82,6 +135,8 @@ Match model capability to task complexity to optimize token usage and cost.
 **Thread example**:
 ```markdown
 ### Thread 2 — Config Resolver Refactor — Reasoning Effort: medium
+- **Claude hint**: Sonnet
+- **OpenAI hint**: GPT-5.4 medium
 - **Purpose**: Track model resolution source (env/yaml/default)
 - **Actions**:
   - Implement _resolve_model() with source tracking
@@ -94,9 +149,13 @@ Match model capability to task complexity to optimize token usage and cost.
 - **Deliverables**: Updated resolver with tests
 ```
 
+**Vendor hints**:
+- Claude: Sonnet
+- OpenAI: GPT-5.4 medium
+
 ---
 
-### Medium-High — Sonnet or Opus Recommended
+### Medium-High
 
 **Characteristics**:
 - Architecture decisions required
@@ -115,6 +174,8 @@ Match model capability to task complexity to optimize token usage and cost.
 **Thread example**:
 ```markdown
 ### Thread 4 — Test Coverage Expansion — Reasoning Effort: medium-high
+- **Claude hint**: Sonnet or Opus
+- **OpenAI hint**: GPT-5.4 high
 - **Purpose**: Ensure CI fails when YAML drift occurs
 - **Actions**:
   - Organize test package with shared fixtures
@@ -127,9 +188,13 @@ Match model capability to task complexity to optimize token usage and cost.
 - **Deliverables**: Test modules, fixtures, documentation
 ```
 
+**Vendor hints**:
+- Claude: Sonnet or Opus
+- OpenAI: GPT-5.4 high
+
 ---
 
-### High — Opus Recommended
+### High
 
 **Characteristics**:
 - Novel problem solving
@@ -148,6 +213,8 @@ Match model capability to task complexity to optimize token usage and cost.
 **Thread example**:
 ```markdown
 ### Thread 8 — Retrospective Validation — Reasoning Effort: high
+- **Claude hint**: Opus
+- **OpenAI hint**: GPT-5.4 high
 - **Purpose**: Verify effectiveness post-rollout and establish monitoring
 - **Actions**:
   - Analyze production logs for drift patterns
@@ -159,6 +226,10 @@ Match model capability to task complexity to optimize token usage and cost.
 - **Validation**: Report identifies any gaps, alerts fire correctly
 - **Deliverables**: Validation report, runbook updates, alert definitions
 ```
+
+**Vendor hints**:
+- Claude: Opus
+- OpenAI: GPT-5.4 high
 
 ---
 
