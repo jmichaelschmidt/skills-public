@@ -1,0 +1,29 @@
+{
+  "plan_path": "docs/plans/example-plan.md",
+  "plan_version": "YYYY-MM-DD",
+  "execution_mode": "sequential",
+  "notes": "Optional execution view for prd-executor. PRD remains source of truth.",
+  "threads": [
+    {
+      "id": "thread-1",
+      "label": "Thread 1",
+      "name": "Descriptive thread name",
+      "status": "PENDING",
+      "reasoning_effort": "medium",
+      "owner_hint": "worker",
+      "depends_on": [],
+      "reference_material": [
+        "path/to/file1.py:1",
+        "path/to/file2.py:20"
+      ],
+      "deliverables": [
+        "docs/context/output.md"
+      ],
+      "output_artifact": "docs/context/output.md",
+      "verify": [
+        "pytest tests/test_example.py",
+        "manual: confirm expected behavior"
+      ]
+    }
+  ]
+}

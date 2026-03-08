@@ -10,6 +10,54 @@ Copy and adapt this template for new planning documents.
 
 [1-2 sentence description of what this plan accomplishes and why it matters]
 
+## Definition of Done
+
+[Describe the end state in present tense as if it's already complete. This is the goal we're working backwards from.]
+
+- Users can [capability]
+- System shows [behavior]
+- Tests verify [criteria]
+- Documentation reflects [changes]
+
+### Working Backwards
+
+From the done state, what's the last thing that needs to happen?
+→ [Final step]
+  ← What must exist for that?
+    → [Prerequisite]
+      ← What must exist for that?
+        → [Earlier prerequisite]
+
+---
+
+## Risk Assessment
+
+### Blast Radius
+
+| Dimension | Assessment |
+|-----------|------------|
+| **Files touched** | [count] files across [count] services |
+| **Services affected** | [list services] |
+| **Data at risk** | [tables/records that could be corrupted] |
+| **User-facing impact** | [what users would see if this fails] |
+| **Rollback complexity** | Easy / Medium / Hard |
+
+### Risk Matrix
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| [What could go wrong] | Low/Med/High | Low/Med/High | [How to prevent or recover] |
+| [Another risk] | Low/Med/High | Low/Med/High | [Mitigation] |
+
+### Rollback Plan
+
+If issues arise after deployment:
+1. [Step to revert change 1]
+2. [Step to revert change 2]
+3. [Verification after rollback]
+
+---
+
 ## Current State Snapshot
 
 [Describe what exists today and the pain points being addressed]
@@ -20,12 +68,16 @@ Copy and adapt this template for new planning documents.
   - [Issue 1]
   - [Issue 2]
 
+---
+
 ## Key Questions
 
 [List questions that need answers before or during implementation]
 
 1. **[Question]?** [Answer or "TBD - decide in Thread N"]
 2. **[Question]?** [Answer]
+
+---
 
 ## Architecture Decisions
 
@@ -46,6 +98,8 @@ Copy and adapt this template for new planning documents.
 - **Option B**: [Description]
 - **Rationale**: [Why Option A was chosen]
 
+---
+
 ## Shared Resources for All Threads
 
 [List files and resources that multiple threads will reference]
@@ -56,25 +110,69 @@ Copy and adapt this template for new planning documents.
 - Tests: `[path/to/tests/]`
 - Documentation: `[path/to/docs/]`
 
+## Optional Execution Manifest
+
+Emit this only when the plan has enough coordination overhead to justify it.
+
+- Path: `[same-directory]/[plan-name].execution-manifest.json`
+- Template: `references/execution-manifest-template.json`
+- Purpose: compact machine-readable routing for `prd-executor`
+- Rule: the PRD is still the source of truth; the manifest is an execution aid
+
+---
+
 ## Sequential Thread Plan
+
+---
+
+### Thread 0 — Investigation — Reasoning Effort: medium-high
+
+> **Include this thread when**: Bug without clear cause, performance issue without profiling, "it's broken" without specifics, or feature that might already exist.
+
+- **Purpose**: Gather information and document findings. DO NOT fix anything.
+- **Actions**:
+  - Reproduce the issue (or document why it can't be reproduced)
+    - *Verify*: Issue observed with specific steps
+  - Read relevant logs, trace code paths
+    - *Verify*: Documented which files/functions are involved
+  - Identify root cause or narrow down candidates
+    - *Verify*: Can explain why the problem occurs
+  - Document findings in investigation report
+    - *Verify*: Report answers: what, where, why, how to fix
+- **Reference material**: [logs, error messages, user reports]
+- **Deliverables**: Investigation report with:
+  - Steps to reproduce (if possible)
+  - Root cause (confirmed or candidates)
+  - Recommended fix approach
+  - Files that will need changes
+- **Claude hint**: Sonnet or Opus
+- **OpenAI hint**: GPT-5.4 high
+- **Reasoning effort**: medium-high
+- **Output feeds**: Thread 1 design decisions
+
+**Important**: Thread 0 produces a REPORT, not code. Implementation starts in Thread 1.
 
 ---
 
 ### Thread 1 — [Descriptive Name] — Reasoning Effort: [level]
 
 - **Purpose**: [One sentence goal]
+- **Claude hint**: [Haiku/Sonnet/Opus or N/A]
+- **OpenAI hint**: [GPT-5.4 low/medium/high or strongest available model]
+- **Ownership hint**: orchestrator | worker | explorer
 - **Actions**:
   - [Specific action 1]
+    - *Verify*: [How to check it worked - command, query, or observation]
   - [Specific action 2]
+    - *Verify*: [Check]
   - [Specific action 3]
+    - *Verify*: [Check]
 - **Reference material**:
   - `path/to/file1.py:1` - [why to read it]
   - `path/to/file2.py:50-100` - [relevant section]
-- **Validation targets**:
-  - [How to verify action 1 worked]
-  - [How to verify action 2 worked]
 - **Deliverables**: [What gets created/modified]
-- **Reasoning effort**: [level] ([Haiku/Sonnet/Opus] recommended)
+- **Output artifact**: [Optional file/artifact path for execution tracking]
+- **Reasoning effort**: [level]
 
 ---
 
@@ -82,19 +180,23 @@ Copy and adapt this template for new planning documents.
 
 - **Purpose**: [One sentence goal]
 - **Depends on**: Thread 1 (if applicable)
+- **Claude hint**: [Haiku/Sonnet/Opus or N/A]
+- **OpenAI hint**: [GPT-5.4 low/medium/high or strongest available model]
+- **Ownership hint**: orchestrator | worker | explorer
 - **Actions**:
   - [Specific action 1]
+    - *Verify*: [Check]
   - [Specific action 2]
+    - *Verify*: [Check]
 - **Reference material**:
   - `path/to/file.py:1`
 - **Key Decision**: [If a choice must be made]
   - **Option A**: [Description] ✅ RECOMMENDED
   - **Option B**: [Description]
   - **Recommendation**: [Reasoning]
-- **Validation targets**:
-  - [Verification method]
 - **Deliverables**: [Outputs]
-- **Reasoning effort**: [level] ([model] recommended)
+- **Output artifact**: [Optional file/artifact path for execution tracking]
+- **Reasoning effort**: [level]
 
 ---
 
@@ -116,13 +218,6 @@ Copy and adapt this template for new planning documents.
 - [What remains unchanged]
 - [What transforms and how]
 
-### Rollback Plan
-
-If issues arise:
-1. [Step to revert change 1]
-2. [Step to revert change 2]
-3. [Verification after rollback]
-
 ---
 
 ## Acceptance Criteria
@@ -140,10 +235,18 @@ If issues arise:
 2. Execute ONE thread per conversation
 3. Start by stating: "Executing Thread N: [Name]"
 4. Read all reference material listed for the thread
-5. Complete all actions listed
-6. Verify all validation targets
-7. Update this PRD with completion log (see format below)
-8. End by stating: "Thread N complete. Next: Thread N+1"
+5. For each action:
+   a. Perform the action
+   b. Run the verify step immediately
+   c. If verify fails, STOP and troubleshoot before continuing
+6. Update this PRD with completion log (see format below)
+7. End by stating: "Thread N complete. Next: Thread N+1"
+
+## Delegation Visibility Rules
+
+- Whenever you spawn a subagent, announce it in commentary with the thread number, agent type, and owned files or output artifact.
+- When a subagent returns, announce that too and summarize what it produced.
+- If no subagent is used for a thread, say that the orchestrator is handling it locally.
 
 ### Completion Log Format
 
@@ -153,6 +256,7 @@ Add this section below the thread when completed:
 **Completion Log — Thread N** ✅ COMPLETED (YYYY-MM-DD)
 - ✅ [What was done - specific files, line numbers]
 - ✅ [Changes made with details]
+- ✅ [All verify steps passed]
 - ✅ [Tests run and results]
 - **Notes**: [Deviations from plan, decisions made, discoveries]
 - **Next**: Thread N+1
@@ -164,9 +268,9 @@ Add this section below the thread when completed:
 
 | Thread | Name | Status | Date |
 |--------|------|--------|------|
+| 0 | Investigation | ⬜ PENDING | - |
 | 1 | [Name] | ⬜ PENDING | - |
 | 2 | [Name] | ⬜ PENDING | - |
-| 3 | [Name] | ⬜ PENDING | - |
 | N | [Name] | ⬜ PENDING | - |
 
 ---
@@ -177,5 +281,40 @@ Add this section below the thread when completed:
 
 - [Decision 1]? [Options and current thinking]
 - [Decision 2]? [Options]
+
+---
+
+## Optional Execution Manifest Template
+
+When needed, emit a sibling file like:
+
+```json
+{
+  "plan_path": "docs/plans/example-plan.md",
+  "plan_version": "2026-03-08",
+  "execution_mode": "sequential",
+  "threads": [
+    {
+      "id": "thread-1",
+      "label": "Thread 1",
+      "name": "Example thread",
+      "status": "PENDING",
+      "reasoning_effort": "medium",
+      "owner_hint": "worker",
+      "depends_on": [],
+      "reference_material": [
+        "path/to/file.py:1"
+      ],
+      "deliverables": [
+        "docs/context/example-output.md"
+      ],
+      "output_artifact": "docs/context/example-output.md",
+      "verify": [
+        "pytest path/to/test.py"
+      ]
+    }
+  ]
+}
+```
 
 Document owner: **[Name/TBD]**. Update this plan as tasks progress.
