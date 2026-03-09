@@ -8,12 +8,14 @@ Usage:
 Options:
     --to MARKETPLACE    Target marketplace name from config (prompts if not specified)
     --branch BRANCH     Use this branch as the base branch (defaults to remote HEAD)
+    --in-development    Publish to skills-in-development/ and skip marketplace manifest updates
     --dry-run           Preview changes without applying
     --no-pr             Skip creating a pull request (just push to branch)
     --message MSG       Custom commit message
 
 Examples:
     publish.py ~/.claude/skills/my-skill --to team
+    publish.py ~/.claude/skills/my-skill --to partner --in-development
     publish.py ./my-skill --to public --dry-run
     publish.py ~/.claude/skills/my-skill --to project-x
     publish.py ~/.claude/skills/my-skill  # Will prompt for marketplace
@@ -29,6 +31,8 @@ from datetime import datetime
 
 
 CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+PUBLISHED_SKILLS_DIR = 'skills'
+IN_DEVELOPMENT_SKILLS_DIR = 'skills-in-development'
 
 
 def load_config() -> dict:
@@ -73,6 +77,11 @@ def validate_source_skill(skill_path: Path) -> tuple:
         return False, f"No SKILL.md found in {skill_path}"
 
     return True, "Valid skill"
+
+
+def infer_in_development(skill_path: Path) -> bool:
+    """Infer development-mode publish target from source path."""
+    return IN_DEVELOPMENT_SKILLS_DIR in skill_path.parts
 
 
 def parse_skill_name(skill_path: Path) -> str:
@@ -393,7 +402,8 @@ def repo_slug_from_url(repo_url: str) -> str:
 
 def publish_skill(skill_path: Path, marketplace: str, config: dict,
                   dry_run: bool = False, no_pr: bool = False,
-                  custom_message: str = None, branch_override: str = None) -> dict:
+                  custom_message: str = None, branch_override: str = None,
+                  in_development: bool = False) -> dict:
     """Publish a skill to the specified marketplace."""
     skill_name = parse_skill_name(skill_path)
 
@@ -410,6 +420,8 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     print(f"\nPublishing skill: {skill_name}")
     print(f"Source: {skill_path}")
     print(f"Marketplace: {marketplace}")
+    publish_dir = IN_DEVELOPMENT_SKILLS_DIR if in_development else PUBLISHED_SKILLS_DIR
+    print(f"Destination Folder: {publish_dir}")
 
     if dry_run:
         print("\n[DRY RUN MODE - No changes will be made]\n")
@@ -421,6 +433,9 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
         'pr_url': None,
         'version': None,
         'base_branch': None,
+        'publish_dir': publish_dir,
+        'manifest_updated': False,
+        'in_development': in_development,
     }
 
     if not dry_run:
@@ -439,7 +454,7 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would create branch: {branch_name} from {base_branch}")
 
-    target_skill_path = repo_path / 'skills' / skill_name
+    target_skill_path = repo_path / publish_dir / skill_name
     if not dry_run:
         target_skill_path.parent.mkdir(parents=True, exist_ok=True)
         if target_skill_path.exists():
@@ -449,16 +464,29 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     else:
         print(f"  [DRY RUN] Would copy skill to: {target_skill_path}")
 
-    if not dry_run:
+    if in_development and not dry_run:
+        print("  Skipping marketplace.json update (in-development publish)")
+    elif in_development:
+        print("  [DRY RUN] Would skip marketplace.json update (in-development publish)")
+    elif not dry_run:
         new_version = update_marketplace_json(repo_path, skill_name, description, marketplace, config)
         results['version'] = new_version
+        results['manifest_updated'] = True
         print(f"  Updated marketplace.json (version: {new_version})")
     else:
         print("  [DRY RUN] Would update marketplace.json")
 
-    update_readme(repo_path, skill_name, description, dry_run)
+    if in_development:
+        if dry_run:
+            print("  [DRY RUN] Would skip README auto-update for in-development publish")
+        else:
+            print("  Skipping README auto-update for in-development publish")
+    else:
+        update_readme(repo_path, skill_name, description, dry_run)
 
-    commit_message = custom_message or f"Add {skill_name} skill"
+    commit_message = custom_message or (
+        f"Add {skill_name} skill (in development)" if in_development else f"Add {skill_name} skill"
+    )
     if not dry_run:
         run_git_command(['add', '.'], repo_path)
         run_git_command(['commit', '-m', commit_message], repo_path)
@@ -474,11 +502,25 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
 
     if not no_pr and not dry_run:
         try:
+            pr_title = (
+                f"Add {skill_name} skill (in development)"
+                if in_development else f"Add {skill_name} skill"
+            )
+            pr_body = (
+                "## Summary\n\n"
+                f"Adds the `{skill_name}` skill to `{publish_dir}` in the {marketplace} repository.\n\n"
+                f"**Description:** {description[:200]}\n\n"
+                "**Manifest:** skipped (in development)"
+                if in_development else
+                "## Summary\n\n"
+                f"Adds the `{skill_name}` skill to the {marketplace} marketplace.\n\n"
+                f"**Description:** {description[:200]}"
+            )
             pr_result = subprocess.run(
                 ['gh', 'pr', 'create',
                  '--base', base_branch,
-                 '--title', f"Add {skill_name} skill",
-                 '--body', f"## Summary\n\nAdds the `{skill_name}` skill to the {marketplace} marketplace.\n\n**Description:** {description[:200]}"],
+                 '--title', pr_title,
+                 '--body', pr_body],
                 cwd=repo_path,
                 capture_output=True,
                 text=True
@@ -513,6 +555,8 @@ def main():
                         help='Target marketplace name from config (prompts if not specified)')
     parser.add_argument('--branch',
                         help='Base branch override (defaults to remote HEAD branch)')
+    parser.add_argument('--in-development', action='store_true',
+                        help='Publish to skills-in-development/ and skip marketplace manifest updates')
     parser.add_argument('--dry-run', action='store_true',
                         help='Preview changes without applying')
     parser.add_argument('--no-pr', action='store_true',
@@ -544,6 +588,11 @@ def main():
         print("Run 'scripts/init.py' to configure your marketplace repositories.")
         sys.exit(1)
 
+    inferred_in_development = infer_in_development(skill_path)
+    in_development = args.in_development or inferred_in_development
+    if inferred_in_development and not args.in_development:
+        print(f"Detected '{IN_DEVELOPMENT_SKILLS_DIR}' in source path; enabling in-development mode.")
+
     results = publish_skill(
         skill_path,
         marketplace,
@@ -552,6 +601,7 @@ def main():
         no_pr=args.no_pr,
         custom_message=args.message,
         branch_override=args.branch,
+        in_development=in_development,
     )
 
     print("\n" + "=" * 50)
@@ -560,6 +610,8 @@ def main():
     print(f"Skill: {results['skill_name']}")
     print(f"Marketplace: {results['marketplace']}")
     print(f"Base Branch: {results['base_branch']}")
+    print(f"Destination Folder: {results['publish_dir']}")
+    print(f"Manifest Updated: {'Yes' if results['manifest_updated'] else 'No'}")
     print(f"Success: {'Yes' if results['success'] else 'No'}")
     if results['version']:
         print(f"Marketplace Version: {results['version']}")
@@ -575,8 +627,12 @@ def main():
         print("-" * 50)
         if results['pr_url']:
             print(f"1. Review and merge the PR: {results['pr_url']}")
-        print(f"2. Once merged, users can install via:")
-        print(f"   /plugin marketplace add {repo_slug}")
+        if results['in_development']:
+            print(f"2. Keep `{results['skill_name']}` in `{IN_DEVELOPMENT_SKILLS_DIR}/` until approved.")
+            print("3. Promote to `skills/` and update marketplace.json only when ready for install.")
+        else:
+            print(f"2. Once merged, users can install via:")
+            print(f"   /plugin marketplace add {repo_slug}")
         print("-" * 50)
 
     sys.exit(0 if results['success'] else 1)

@@ -121,14 +121,23 @@ Options:
 
 ```bash
 scripts/publish.py ~/.claude/skills/my-skill --to team
+scripts/publish.py ~/.claude/skills/my-skill --to partner --in-development
 ```
 
-This will:
+Standard publish will:
 1. Copy the skill to your team marketplace repo
 2. Update marketplace.json
 3. Update the README.md "Available Skills" table (for new skills)
 4. Create a PR for review
 5. Sync to other platforms (if configured)
+
+In-development publish (`--in-development`) will:
+1. Copy the skill to `skills-in-development/`
+2. Skip `marketplace.json` updates (so it is not installable from marketplace)
+3. Skip automatic README table updates
+4. Create a PR for review
+
+If the source path includes `skills-in-development/`, publish mode is inferred automatically.
 
 If you don't specify `--to`, you'll be prompted to choose.
 
@@ -299,6 +308,9 @@ Each marketplace repo follows this structure:
 │   │   └── scripts/
 │   └── skill-two/
 │       └── SKILL.md
+├── skills-in-development/  # Optional: excluded from marketplace manifest
+│   └── alpha-skill/
+│       └── SKILL.md
 └── README.md
 ```
 
@@ -354,6 +366,8 @@ scripts/validate.py ~/.claude/skills/my-skill
 
 ```bash
 scripts/publish.py ~/.claude/skills/my-skill --to team
+# For alpha/in-progress skills that should not be marketplace-installable:
+scripts/publish.py ~/.claude/skills/my-skill --to team --in-development
 ```
 
 ### Step 4: Merge PR
