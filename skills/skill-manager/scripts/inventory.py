@@ -19,15 +19,15 @@ Options:
 """
 
 import argparse
-import json
 import os
 import re
 import sys
 from pathlib import Path
+
+from config_resolver import load_config_optional
 from typing import Optional
 
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
 ALL_SOURCES = {'global', 'project', 'marketplace'}
 
 # Default platform configuration
@@ -54,10 +54,7 @@ DEFAULT_PLATFORMS = {
 
 def load_config() -> dict:
     """Load configuration or return None."""
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    return None
+    return load_config_optional()
 
 
 def get_platform_paths(config: dict = None) -> dict:

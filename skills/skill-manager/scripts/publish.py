@@ -15,35 +15,29 @@ Options:
 
 Examples:
     publish.py ~/.claude/skills/my-skill --to team
-    publish.py ~/.claude/skills/my-skill --to three-dna --in-development
+    publish.py ~/.claude/skills/my-skill --to partner --in-development
     publish.py ./my-skill --to public --dry-run
-    publish.py ~/.claude/skills/my-skill --to plumwheel
+    publish.py ~/.claude/skills/my-skill --to project-x
     publish.py ~/.claude/skills/my-skill  # Will prompt for marketplace
 """
 
 import argparse
-import json
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from config_resolver import load_config_required
 from datetime import datetime
 
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
 PUBLISHED_SKILLS_DIR = 'skills'
 IN_DEVELOPMENT_SKILLS_DIR = 'skills-in-development'
 
 
 def load_config() -> dict:
-    """Load marketplace configuration."""
-    if not CONFIG_PATH.exists():
-        print(f"ERROR: Config file not found at {CONFIG_PATH}")
-        print("Run 'scripts/init.py' to set up your marketplace configuration.")
-        sys.exit(1)
-
-    with open(CONFIG_PATH) as f:
-        return json.load(f)
+    """Load configuration."""
+    return load_config_required()
 
 
 def parse_repo_name(repo_url: str) -> str:

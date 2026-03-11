@@ -24,14 +24,13 @@ Drift options:
     --format text|json    Output format (default: text)
 
 Examples:
-    marketplace-mirror.py mirror --from public --to three-dna --source-ref v1.3.0
-    marketplace-mirror.py mirror --from public --to three-dna --source-ref 8ab12cd --skill skill-manager
-    marketplace-mirror.py drift --from public --to three-dna
+    marketplace-mirror.py mirror --from public --to partner --source-ref v1.3.0
+    marketplace-mirror.py mirror --from public --to partner --source-ref 8ab12cd --skill skill-manager
+    marketplace-mirror.py drift --from public --to partner
 """
 
 import argparse
 import hashlib
-import json
 import shutil
 import subprocess
 import sys
@@ -39,19 +38,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+from config_resolver import load_config_required
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+
 
 
 def load_config() -> dict:
-    """Load marketplace configuration."""
-    if not CONFIG_PATH.exists():
-        print(f"ERROR: Config file not found at {CONFIG_PATH}")
-        print("Run 'scripts/init.py' to set up your marketplace configuration.")
-        sys.exit(1)
-
-    with open(CONFIG_PATH) as f:
-        return json.load(f)
+    """Load configuration."""
+    return load_config_required()
 
 
 def run_git(args: list, cwd: Path, check: bool = True) -> subprocess.CompletedProcess:

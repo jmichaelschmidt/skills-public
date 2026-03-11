@@ -115,13 +115,13 @@ Options:
   - `--include=marketplace`
 ## Marketplace System
 
-`skill-manager` works with marketplace keys from `config.json` (for example: `private`, `team`, `public`, `three-dna`, `enterprise-core`). Keys are identifiers only; repository names and plugin names can be arbitrary.
+`skill-manager` works with marketplace keys from `config.json` (for example: `private`, `team`, `public`, `partner`, `enterprise-core`). Keys are identifiers only; repository names and plugin names can be arbitrary.
 
 ### Publish a Skill
 
 ```bash
 scripts/publish.py ~/.claude/skills/my-skill --to team
-scripts/publish.py ~/.claude/skills/my-skill --to three-dna --in-development
+scripts/publish.py ~/.claude/skills/my-skill --to partner --in-development
 ```
 
 Standard publish will:
@@ -160,16 +160,16 @@ scripts/marketplace-sync.py --auto-stash
 Mirror from a canonical source ref (`tag`, `branch`, or `commit`) into a target marketplace with manifest and README updates:
 
 ```bash
-scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref v1.2.0
-scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref 8ab12cd --skill skill-manager
-scripts/marketplace-mirror.py mirror --from public --to three-dna --source-ref main --dry-run
+scripts/marketplace-mirror.py mirror --from public --to partner --source-ref v1.2.0
+scripts/marketplace-mirror.py mirror --from public --to partner --source-ref 8ab12cd --skill skill-manager
+scripts/marketplace-mirror.py mirror --from public --to partner --source-ref main --dry-run
 ```
 
 Generate drift reports at any time:
 
 ```bash
-scripts/marketplace-mirror.py drift --from public --to three-dna
-scripts/marketplace-mirror.py drift --from public --to three-dna --source-ref v1.2.0
+scripts/marketplace-mirror.py drift --from public --to partner
+scripts/marketplace-mirror.py drift --from public --to partner --source-ref v1.2.0
 ```
 
 ### Distribute Marketplace Skills to Other Platforms
@@ -232,7 +232,7 @@ scripts/marketplace-mirror.py drift --from public --to team
 
 ## Configuration
 
-Configuration is stored in `config.json`:
+Configuration is stored in your user-local config file (created by `scripts/init.py`, typically `~/.config/skill-manager/config.json`):
 
 ```json
 {
@@ -417,7 +417,7 @@ Then browse skills in the `/plugin` UI under the Discover tab.
 
 ### Sync Not Working
 
-1. Check your config: `cat ~/.claude/skills/skill-manager/config.json`
+1. Check your config: `cat ~/.config/skill-manager/config.json`
 2. Verify source platform is set: look for `"is_source": true`
 3. Verify target platforms are enabled: look for `"enabled": true`
 4. Run with `--dry-run` to preview: `scripts/sync.py --all --dry-run`

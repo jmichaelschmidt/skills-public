@@ -1,17 +1,17 @@
 {
   "platforms": {
     "claude": {
-      "enabled": true,
+      "enabled": false,
       "user_path": "~/.claude/skills",
-      "is_source": true
+      "is_source": false
     },
     "codex": {
-      "enabled": true,
+      "enabled": false,
       "user_path": "~/.codex/skills",
       "is_source": false
     },
     "gemini": {
-      "enabled": true,
+      "enabled": false,
       "user_path": "~/.gemini/skills",
       "is_source": false
     },
@@ -24,34 +24,24 @@
   "sync_mode": "symlink",
   "marketplaces": {
     "private": {
-      "repo": "https://github.com/jmichaelschmidt/skills-private",
-      "description": "Personal/experimental skills (only you)",
+      "repo": "",
+      "description": "Personal/experimental skills",
       "visibility": "private"
     },
     "team": {
-      "repo": "https://github.com/jmichaelschmidt/skills-team",
-      "description": "Shared skills for your primary collaborators",
+      "repo": "",
+      "description": "Shared skills for collaborators",
       "visibility": "private"
     },
     "public": {
-      "repo": "https://github.com/jmichaelschmidt/skills-public",
-      "description": "Freely available skills for anyone",
+      "repo": "",
+      "description": "Freely available skills",
       "visibility": "public"
-    },
-    "plumwheel": {
-      "repo": "https://github.com/jmichaelschmidt/skills-plumwheel",
-      "description": "Skills for Plumwheel project",
-      "visibility": "private"
-    },
-    "three-dna": {
-      "repo": "https://github.com/3dna/skills",
-      "description": "Private 3DNA team marketplace",
-      "visibility": "private"
     }
   },
   "owner": {
-    "name": "Michael Schmidt",
-    "email": "42623536+jmichaelschmidt@users.noreply.github.com"
+    "name": "",
+    "email": ""
   },
   "local_repos_path": "~/GitHub"
 }

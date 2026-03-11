@@ -24,14 +24,14 @@ Examples:
 """
 
 import argparse
-import json
 import os
 import shutil
 import sys
 from pathlib import Path
 
+from config_resolver import load_config_optional
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+
 
 # Default platform paths (used when no config exists)
 DEFAULT_PLATFORMS = {
@@ -59,11 +59,8 @@ DEFAULT_PLATFORMS = {
 
 
 def load_config() -> dict:
-    """Load configuration or return None if not configured."""
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    return None
+    """Load configuration or return None."""
+    return load_config_optional()
 
 
 def get_platform_paths(config: dict = None) -> dict:

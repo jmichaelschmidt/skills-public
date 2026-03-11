@@ -51,10 +51,10 @@ class MarketplaceGeneralizationTests(unittest.TestCase):
         config = {
             'local_repos_path': '/tmp/skills-test',
             'marketplaces': {
-                'three-dna': {'repo': 'https://github.com/3dna/platform-skills.git'}
+                'partner': {'repo': 'https://github.com/example-org/partner-skills.git'}
             },
         }
-        path = publish.get_local_repo_path(config, 'three-dna')
+        path = publish.get_local_repo_path(config, 'partner')
         self.assertEqual(path, Path('/tmp/skills-test/platform-skills'))
 
     def test_local_repo_path_falls_back_to_marketplace_key(self):
@@ -106,7 +106,7 @@ class DryRunOutputTests(unittest.TestCase):
         mirror = load_script_module('marketplace-mirror.py')
         plan = mirror.format_mirror_plan(
             source_marketplace='public',
-            target_marketplace='three-dna',
+            target_marketplace='partner',
             source_ref='v1.2.0',
             source_commit='abc1234',
             base_branch='main',
@@ -118,7 +118,7 @@ class DryRunOutputTests(unittest.TestCase):
             "MARKETPLACE MIRROR\n"
             "======================================================================\n"
             "Source: public @ v1.2.0 (abc1234)\n"
-            "Target: three-dna\n"
+            "Target: partner\n"
             "Base branch: main\n"
             "Skills: engineering-scope, skill-manager"
         )

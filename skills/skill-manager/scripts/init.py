@@ -23,14 +23,14 @@ Examples:
 """
 
 import argparse
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+from config_resolver import get_runtime_config_path, load_config_optional, save_user_config
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+
 
 # Supported platforms with their default paths
 PLATFORMS = {
@@ -76,10 +76,7 @@ MARKETPLACE_JSON_TEMPLATE = {
 
 def load_config() -> dict:
     """Load existing configuration or return default."""
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    return get_default_config()
+    return load_config_optional(default=get_default_config())
 
 
 def get_default_config() -> dict:
@@ -104,9 +101,8 @@ def get_default_config() -> dict:
 
 def save_config(config: dict):
     """Save configuration."""
-    with open(CONFIG_PATH, 'w') as f:
-        json.dump(config, f, indent=2)
-    print(f"Configuration saved to {CONFIG_PATH}")
+    path = save_user_config(config)
+    print(f"Configuration saved to {path}")
 
 
 def get_local_repo_path(config: dict, marketplace: str) -> Path:
