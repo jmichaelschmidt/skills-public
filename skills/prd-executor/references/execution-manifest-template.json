@@ -3,6 +3,26 @@
   "plan_version": "YYYY-MM-DD",
   "execution_mode": "sequential",
   "notes": "Optional execution view for prd-executor. PRD remains source of truth.",
+  "execution_contract": {
+    "implementation_home": "/absolute/path/to/repo",
+    "working_directory": "/absolute/path/to/repo",
+    "base_branch": "main",
+    "feature_branch": "codex/example-feature",
+    "branch_required_before_edits": true,
+    "allow_main": false,
+    "refresh_before_branching": true,
+    "if_behind_upstream": "pull",
+    "dirty_worktree_policy": "disallow",
+    "runtime": "CLI",
+    "subagents_expected": true,
+    "required_env": [
+      "EXAMPLE_API_KEY"
+    ],
+    "required_checks": [
+      "python3 scripts/check-setup.py"
+    ],
+    "first_command": "git status --short --branch"
+  },
   "threads": [
     {
       "id": "thread-1",

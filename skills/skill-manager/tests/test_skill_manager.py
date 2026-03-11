@@ -2,6 +2,7 @@
 """Script-level regression tests for skill-manager hardening."""
 
 import importlib.util
+import json
 import shutil
 import subprocess
 import tempfile
@@ -123,6 +124,47 @@ class DryRunOutputTests(unittest.TestCase):
             "Skills: engineering-scope, skill-manager"
         )
         self.assertEqual(plan, expected)
+
+
+class MarketplaceAuditTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = Path(tempfile.mkdtemp(prefix='skill-manager-marketplace-tests-'))
+        self.public_repo = self.tempdir / 'skills-public'
+        self.team_repo = self.tempdir / 'skills-team'
+        (self.public_repo / 'skills' / 'prd-planner').mkdir(parents=True)
+        (self.team_repo / 'skills' / 'prd-planner').mkdir(parents=True)
+
+        (self.public_repo / 'skills' / 'prd-planner' / 'SKILL.md').write_text(
+            "---\nname: prd-planner\ndescription: canonical\n---\n"
+        )
+        (self.team_repo / 'skills' / 'prd-planner' / 'SKILL.md').write_text(
+            "---\nname: prd-planner\ndescription: divergent\n---\n"
+        )
+
+        self.config_path = self.tempdir / 'config.json'
+        self.config_path.write_text(
+            json.dumps({
+                'local_repos_path': str(self.tempdir),
+                'marketplaces': {
+                    'public': {'repo': 'https://github.com/example/skills-public'},
+                    'team': {'repo': 'https://github.com/example/skills-team'},
+                },
+            })
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def test_marketplace_audit_detects_duplicate_drift(self):
+        audit = load_script_module('audit.py')
+        audit.CONFIG_PATH = self.config_path
+
+        skill_data = audit.find_skill_across_marketplaces('prd-planner')
+        comparison = audit.compare_skill_versions(skill_data)
+
+        self.assertEqual(set(skill_data.keys()), {'public', 'team'})
+        self.assertEqual(comparison['status'], 'drift')
+        self.assertIn('team', comparison['modified_files'])
 
 
 if __name__ == '__main__':

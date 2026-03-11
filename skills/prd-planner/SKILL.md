@@ -21,10 +21,11 @@ Generate structured planning documents that optimize AI-assisted development by 
 2. **Define done** - Write the end state before any threads
 3. **Work backwards** - Identify dependencies from goal to starting point
 4. **Analyze complexity** - Identify discrete work units and assign reasoning levels
-5. **Generate the PRD** - Use the template structure from [references/prd-template.md](references/prd-template.md)
-6. **Assess risk** - Document blast radius and rollback plan
-7. **Validate completeness** - Ensure each thread is self-contained
-8. **Optionally emit an execution manifest** - For plans with 3+ threads, dependencies, or intended subagent execution, also produce a compact manifest using [references/execution-manifest-template.json](references/execution-manifest-template.json)
+5. **Define the execution contract** - Document repo path, branch strategy, refresh policy, runtime expectations, and secret/config prerequisites
+6. **Generate the PRD** - Use the template structure from [references/prd-template.md](references/prd-template.md)
+7. **Assess risk** - Document blast radius and rollback plan
+8. **Validate completeness** - Ensure each thread is self-contained
+9. **Optionally emit an execution manifest** - For plans with 3+ threads, dependencies, or intended subagent execution, also produce a compact manifest using [references/execution-manifest-template.json](references/execution-manifest-template.json)
 
 ---
 
@@ -115,6 +116,49 @@ For bugs, performance issues, or unclear problems, insert an investigation threa
 
 ---
 
+## Execution Contract (Required For Runnable PRDs)
+
+If a PRD might be executed in a fresh thread, by `prd-executor`, or from a different runtime than the planner session, it MUST include an explicit execution contract.
+
+### Required Execution Contract Fields
+
+Include these sections in the PRD:
+
+- **Implementation Home** - exact repo path or workspace root where changes should happen
+- **Branch Strategy** - target branch name, whether to create a new branch before edits, and whether execution is allowed on `main`
+- **Repo Preconditions** - whether the executor must refresh/fetch/pull first, what to do if the repo is behind upstream, and dirty-worktree policy
+- **Execution Environment** - whether the plan expects Codex app, CLI, Claude Code, OpenClaw, or another runtime; note if subagents are expected
+- **Secrets / Config Preconditions** - required env vars, Infisical paths, setup checks, or local files that must exist before execution
+- **Operator Safety Rules** - what should cause execution to stop and ask instead of proceeding
+- **First Command** - the first operational step the executor should take before starting implementation threads
+
+### Execution Preflight Pattern
+
+For any repo-changing plan, add a dedicated preflight step before implementation starts:
+
+```markdown
+### Thread P0 — Execution Preflight — Reasoning Effort: low
+
+- **Purpose**: Verify repo, branch, freshness, runtime, and secrets/config before any code changes.
+- **Actions**:
+  - Confirm implementation repo path exists and is the correct repo
+    - *Verify*: `git rev-parse --show-toplevel` matches the PRD
+  - Confirm branch/base policy
+    - *Verify*: current branch and branch creation state match the PRD contract
+  - Confirm repo freshness requirement
+    - *Verify*: refresh/pull/fetch step completed if required by the plan
+  - Confirm required secrets/config are present
+    - *Verify*: setup check or env validation passes
+  - Record starting execution state in the ledger or PRD
+    - *Verify*: starting branch, repo state, and prerequisites are written down
+- **Deliverables**: Preflight log and go/no-go decision for implementation
+- **Reasoning effort**: Low
+```
+
+If the execution contract is missing for a runnable plan, the planner should treat that as an incomplete PRD.
+
+---
+
 ## Reasoning Level Guidelines
 
 Assign reasoning levels based on task characteristics. See [references/reasoning-levels.md](references/reasoning-levels.md) for detailed guidance.
@@ -141,6 +185,8 @@ Every thread in the PRD MUST include:
 4. **Reference material** - File paths to read first (use `file.py:1` format for line hints)
 5. **Deliverables** - Expected outputs
 6. **Reasoning effort** - Vendor-neutral level
+
+For executable plans, the PRD as a whole MUST also include the execution contract above. A plan is not self-contained if the executor still has to guess the repo path, branch policy, refresh policy, or required setup.
 
 ### Inline Verification (New Pattern)
 
@@ -189,6 +235,8 @@ Do not emit a manifest for tiny 1-2 thread plans unless the user asks for it.
 
 The PRD remains the human-readable source of truth. The manifest is only a machine-friendly execution view.
 
+When the PRD has an execution contract, the manifest should carry the same implementation home and branch intent at a compact level so `prd-executor` can validate preflight consistently.
+
 Use [references/execution-manifest-template.json](references/execution-manifest-template.json).
 
 ---
@@ -209,6 +257,9 @@ Use this structure for all PRDs. See [references/prd-template.md](references/prd
 ## Risk Assessment
 [Blast radius, rollback complexity - see template]
 
+## Execution Contract
+[Repo path, branch strategy, refresh policy, runtime assumptions, secret/config prerequisites, safety rules, first command]
+
 ## Current State Snapshot
 [What exists today, pain points]
 
@@ -216,6 +267,9 @@ Use this structure for all PRDs. See [references/prd-template.md](references/prd
 [Key choices made, with rationale]
 
 ## Sequential Thread Plan
+
+### Thread P0 — Execution Preflight — Reasoning Effort: low
+[Required for repo-changing plans]
 
 ### Thread 0 — Investigation — Reasoning Effort: medium-high
 [If needed - for bugs/unclear problems]
@@ -273,6 +327,10 @@ When a thread is completed, the PRD should be updated with implementation detail
 
 ---
 
+Include the preflight completion log when Thread P0 is used so later executors know the starting repo/branch state.
+
+---
+
 ## Instructing the Executor
 
 Include these instructions in the PRD so that executing agents know how to work:
@@ -290,6 +348,17 @@ Include these instructions in the PRD so that executing agents know how to work:
    c. If verify fails, stop and troubleshoot before continuing
 6. Update the PRD with completion log before ending
 7. State: "Thread N complete. Next: Thread N+1"
+```
+
+For runnable plans, also include:
+
+```markdown
+## Execution Preflight Rules
+
+- Do not start implementation until Thread P0 or equivalent preflight is complete.
+- If the repo/branch/refresh policy is missing, patch the PRD before proceeding.
+- Never assume execution on `main` is allowed unless the PRD says so explicitly.
+- If required secrets/config are missing, stop and resolve that before spawning implementation subagents.
 ```
 
 For plans intended for `prd-executor`, also include a delegation visibility block so the user can tell from terminal commentary when work is actually being delegated:

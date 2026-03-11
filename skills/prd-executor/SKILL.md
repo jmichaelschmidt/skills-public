@@ -41,6 +41,7 @@ If the plan does not exist yet, use `prd-planner` first.
 Read the PRD fully. Extract:
 
 - objective and definition of done
+- execution contract and preflight requirements
 - thread IDs and names
 - dependencies
 - reasoning effort
@@ -50,11 +51,28 @@ Read the PRD fully. Extract:
 
 If the PRD is missing dependency or verification detail, repair the execution view before spawning agents. Do not delegate from a vague plan.
 
+If the PRD is intended to be runnable from a fresh thread or different runtime, it must also specify repo path, branch/base policy, refresh policy, runtime assumptions, and required secrets/config. If those are missing, the plan is incomplete for execution and must be patched before continuing.
+
 If a sibling execution manifest exists, use it as a compact routing aid for status, dependencies, owner hints, and output artifacts. The PRD still wins if the two disagree.
 
 For complex plans, create a compact execution ledger using [references/execution-ledger-template.md](references/execution-ledger-template.md).
 
-### 2. Decide Execution Mode
+### 2. Run Execution Preflight
+
+Before any implementation thread:
+
+- confirm the implementation repo/workspace path
+- confirm current branch and required feature branch behavior
+- confirm whether refresh/fetch/pull is required before branching or editing
+- confirm dirty-worktree policy
+- confirm required secrets/config and setup checks
+- record the starting repo/branch/setup state in the ledger or PRD
+
+If the execution contract says refresh first, do that before branch creation or edits. If the PRD forbids work on `main`, do not proceed on `main`.
+
+If preflight is missing or fails, stop and repair the plan or environment before spawning workers.
+
+### 3. Decide Execution Mode
 
 Use one of three modes:
 
@@ -64,7 +82,7 @@ Use one of three modes:
 
 Prefer the smallest amount of parallelism that still improves throughput.
 
-### 3. Map Threads To Execution Shape
+### 4. Map Threads To Execution Shape
 
 Use this default routing:
 
@@ -78,7 +96,7 @@ Use this default routing:
 
 Do not delegate the immediate blocking step if the orchestrator needs that result right away to keep moving.
 
-### 4. Package Thread Context
+### 5. Package Thread Context
 
 Each subagent prompt must be self-contained. Include only:
 
@@ -93,7 +111,7 @@ Use [references/thread-prompt-template.md](references/thread-prompt-template.md)
 
 If a manifest is present, include only the current thread's manifest entry plus the exact PRD thread section, not the full manifest.
 
-### 5. Spawn, Review, Integrate
+### 6. Spawn, Review, Integrate
 
 For each runnable thread:
 
@@ -105,7 +123,7 @@ For each runnable thread:
 
 Do not allow multiple workers to edit the same files unless the overlap is trivial and intentional.
 
-### 6. Verify At Two Levels
+### 7. Verify At Two Levels
 
 Every thread must pass:
 
@@ -126,6 +144,7 @@ Track each thread as one of:
 For each thread, record:
 
 - owner
+- repo and branch context if relevant
 - dependency status
 - output artifact or changed files
 - verification result
@@ -167,10 +186,13 @@ Default policy:
 ## Execution Rules
 
 - Read the full plan before starting any thread.
+- Complete execution preflight before any repo-changing implementation work.
 - Execute only runnable threads whose dependencies are satisfied.
 - Keep prompts narrow. Do not dump the whole PRD into every subagent.
 - Prefer `explorer` for read-only repo questions.
 - Prefer `worker` for bounded implementation with disjoint ownership.
+- Never assume working on `main` is acceptable unless the PRD explicitly allows it.
+- If repo freshness, branch policy, or secrets/config requirements are missing, patch the plan before continuing.
 - Whenever a subagent is spawned, announce it in commentary with the thread number, agent type, and owned files or output artifact.
 - When a subagent finishes, announce that and summarize what it produced before integrating.
 - If the orchestrator keeps a thread local, say so explicitly in commentary.

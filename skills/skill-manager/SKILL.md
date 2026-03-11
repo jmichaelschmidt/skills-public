@@ -37,6 +37,8 @@ Skill-manager uses a **single source of truth** model. You designate one platfor
 
 **To change your source of truth:** Edit `config.json` and set `"is_source": true` on your preferred platform (and `false` on all others), or re-run `scripts/init.py`.
 
+**Marketplace rule:** the same skill should not be maintained independently in multiple marketplace repos. If a skill appears in more than one marketplace, it should get there through deliberate publish/mirror flow from one canonical source, not ad hoc edits in each repo.
+
 ## Supported Platforms
 
 | Platform | User Skills Path | Detection |
@@ -206,7 +208,11 @@ Options:
 ```bash
 scripts/audit.py <skill-name>
 scripts/audit.py --all
+scripts/audit.py --marketplaces <skill-name>
+scripts/audit.py --marketplaces --all
 ```
+
+Use marketplace audit whenever the same skill might exist in multiple marketplace repos. This catches accidental duplicate copies and missing reference files before they drift further.
 
 ### Validate a Skill
 

@@ -58,6 +58,48 @@ If issues arise after deployment:
 
 ---
 
+## Execution Contract
+
+### Implementation Home
+
+- Repository root: `[absolute/path/to/repo]`
+- Working directory for execution: `[absolute/path]`
+
+### Branch Strategy
+
+- Base branch: `[main|trunk|other]`
+- Feature branch: `[codex/feature-name]`
+- Branch creation required before edits: Yes / No
+- Execution allowed on `main`: Yes / No
+
+### Repo Preconditions
+
+- Refresh required before branching: Yes / No
+- If behind upstream: `[fetch/pull/rebase/stop-and-ask]`
+- Dirty worktree policy: `[allowed/disallowed/allowed only for unrelated files]`
+
+### Execution Environment
+
+- Primary runtime: `[Codex app | CLI | Claude Code | OpenClaw | other]`
+- Subagents expected: Yes / No
+- Special tooling assumptions: `[tooling or runtime prerequisites]`
+
+### Secrets / Config Preconditions
+
+- Required env vars: `[VAR_1, VAR_2]`
+- Required secret sources: `[Infisical path, local file, etc.]`
+- Required setup checks: `[command or validation step]`
+
+### Operator Safety Rules
+
+- `[What should cause execution to stop and ask instead of proceeding]`
+
+### First Command
+
+- `[The exact first operational step the executor should take]`
+
+---
+
 ## Current State Snapshot
 
 [Describe what exists today and the pain points being addressed]
@@ -122,6 +164,31 @@ Emit this only when the plan has enough coordination overhead to justify it.
 ---
 
 ## Sequential Thread Plan
+
+---
+
+### Thread P0 — Execution Preflight — Reasoning Effort: low
+
+- **Purpose**: Verify repo, branch, freshness, runtime, and secrets/config before any code changes.
+- **Claude hint**: Haiku or Sonnet
+- **OpenAI hint**: GPT-5.4 low
+- **Ownership hint**: orchestrator
+- **Actions**:
+  - Confirm implementation repo path exists and is correct
+    - *Verify*: `git rev-parse --show-toplevel` matches `Implementation Home`
+  - Confirm branch policy before edits
+    - *Verify*: current branch and branch creation state match `Branch Strategy`
+  - Confirm repo freshness requirement
+    - *Verify*: refresh step is complete if the execution contract requires it
+  - Confirm required secrets/config are present
+    - *Verify*: setup check or env validation passes
+  - Record the starting execution state
+    - *Verify*: PRD or ledger notes starting branch, repo state, and setup status
+- **Reference material**:
+  - `[repo path or setup doc]`
+- **Deliverables**: preflight log and go/no-go decision
+- **Output artifact**: `[optional ledger entry or setup report]`
+- **Reasoning effort**: low
 
 ---
 
@@ -232,15 +299,16 @@ Emit this only when the plan has enough coordination overhead to justify it.
 ## How to Execute Threads
 
 1. Read this PRD fully before starting any thread
-2. Execute ONE thread per conversation
-3. Start by stating: "Executing Thread N: [Name]"
-4. Read all reference material listed for the thread
-5. For each action:
+2. Complete `Thread P0 — Execution Preflight` before any repo-changing implementation work
+3. Execute ONE thread per conversation
+4. Start by stating: "Executing Thread N: [Name]"
+5. Read all reference material listed for the thread
+6. For each action:
    a. Perform the action
    b. Run the verify step immediately
    c. If verify fails, STOP and troubleshoot before continuing
-6. Update this PRD with completion log (see format below)
-7. End by stating: "Thread N complete. Next: Thread N+1"
+7. Update this PRD with completion log (see format below)
+8. End by stating: "Thread N complete. Next: Thread N+1"
 
 ## Delegation Visibility Rules
 

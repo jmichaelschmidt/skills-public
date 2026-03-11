@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Skill Audit - Compare skills across platforms to detect drift and inconsistencies.
+Skill Audit - Compare skills across platforms or marketplace repos to detect drift and inconsistencies.
 
 Usage:
-    audit.py <skill-name>           Audit a specific skill across platforms
-    audit.py --all                  Audit all skills for cross-platform consistency
-    audit.py --source <path> --compare <platform>  Compare source against platform
+    audit.py <skill-name>                  Audit a specific skill across platforms
+    audit.py --all                         Audit all skills for cross-platform consistency
+    audit.py --marketplaces <skill-name>   Audit a specific skill across marketplace repos
+    audit.py --marketplaces --all          Audit all skills across marketplace repos
 
 Options:
     --format FORMAT    Output format: text, json (default: text)
@@ -22,6 +23,9 @@ from pathlib import Path
 from typing import Optional
 
 
+CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+
+
 def get_platform_paths():
     """Return platform-specific skill directories."""
     home = Path.home()
@@ -29,6 +33,42 @@ def get_platform_paths():
         'claude': home / '.claude' / 'skills',
         'codex': home / '.codex' / 'skills',
     }
+
+
+def load_config() -> dict:
+    """Load skill-manager config when marketplace auditing is requested."""
+    if not CONFIG_PATH.exists():
+        print(f"ERROR: Config file not found at {CONFIG_PATH}")
+        sys.exit(1)
+
+    with open(CONFIG_PATH) as f:
+        return json.load(f)
+
+
+def parse_repo_name(repo_url: str) -> str:
+    """Extract repo directory name from a configured repo URL."""
+    repo_name = repo_url.rstrip('/').split('/')[-1]
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+    return repo_name
+
+
+def get_marketplace_paths():
+    """Return marketplace-specific skill directories from config."""
+    config = load_config()
+    base_path = Path(config['local_repos_path']).expanduser()
+    paths = {}
+
+    for marketplace, info in config.get('marketplaces', {}).items():
+        repo_url = info.get('repo', '')
+        if not repo_url:
+            continue
+        repo_path = base_path / parse_repo_name(repo_url)
+        skill_root = repo_path / 'skills'
+        if skill_root.exists():
+            paths[marketplace] = skill_root
+
+    return paths
 
 
 def hash_file(path: Path) -> str:
@@ -91,6 +131,25 @@ def find_skill_across_platforms(skill_name: str) -> dict:
         skill_path = base_path / skill_name
         if skill_path.exists():
             found[platform] = {
+                'path': skill_path,
+                'files': get_skill_files(skill_path),
+                'metadata': parse_skill_metadata(skill_path),
+                'is_symlink': skill_path.is_symlink(),
+                'symlink_target': str(skill_path.resolve()) if skill_path.is_symlink() else None,
+            }
+
+    return found
+
+
+def find_skill_across_marketplaces(skill_name: str) -> dict:
+    """Find a skill by name across configured marketplace repos."""
+    paths = get_marketplace_paths()
+    found = {}
+
+    for marketplace, base_path in paths.items():
+        skill_path = base_path / skill_name
+        if skill_path.exists():
+            found[marketplace] = {
                 'path': skill_path,
                 'files': get_skill_files(skill_path),
                 'metadata': parse_skill_metadata(skill_path),
@@ -204,6 +263,29 @@ def audit_all_skills() -> dict:
     return results
 
 
+def audit_all_marketplace_skills() -> dict:
+    """Audit all skills across configured marketplace repos."""
+    paths = get_marketplace_paths()
+    all_skills = set()
+
+    for base_path in paths.values():
+        if base_path.exists():
+            for item in base_path.iterdir():
+                if item.is_dir() and (item / 'SKILL.md').exists():
+                    all_skills.add(item.name)
+
+    results = {}
+    for skill_name in sorted(all_skills):
+        skill_data = find_skill_across_marketplaces(skill_name)
+        comparison = compare_skill_versions(skill_data)
+        results[skill_name] = {
+            'platforms': list(skill_data.keys()),
+            'comparison': comparison,
+        }
+
+    return results
+
+
 def format_text_output(results: dict, verbose: bool = False) -> str:
     """Format audit results as human-readable text."""
     lines = []
@@ -232,7 +314,7 @@ def format_text_output(results: dict, verbose: bool = False) -> str:
             status_icon = "OK"
 
         lines.append(f"\n[{status_icon}] {skill_name}")
-        lines.append(f"    Platforms: {', '.join(data['platforms'])}")
+        lines.append(f"    Locations: {', '.join(data['platforms'])}")
 
         if verbose or status == 'drift':
             if comparison.get('message'):
@@ -262,17 +344,19 @@ def format_text_output(results: dict, verbose: bool = False) -> str:
     lines.append(f"  Single platform:     {single_count}")
 
     if drift_count > 0:
-        lines.append("\nWARNING: Drift detected! Use 'sync.py' to reconcile differences.")
+        lines.append("\nWARNING: Drift detected! Use 'sync.py' for platform drift or 'marketplace-mirror.py' for marketplace drift.")
 
     return '\n'.join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Audit skills across platforms for drift')
+    parser = argparse.ArgumentParser(description='Audit skills across platforms or marketplace repos for drift')
     parser.add_argument('skill_name', nargs='?',
                         help='Name of skill to audit')
     parser.add_argument('--all', action='store_true',
                         help='Audit all skills')
+    parser.add_argument('--marketplaces', action='store_true',
+                        help='Audit configured marketplace repos instead of platform installs')
     parser.add_argument('--format', choices=['text', 'json'], default='text',
                         help='Output format')
     parser.add_argument('--verbose', '-v', action='store_true',
@@ -281,9 +365,9 @@ def main():
     args = parser.parse_args()
 
     if args.all:
-        results = audit_all_skills()
+        results = audit_all_marketplace_skills() if args.marketplaces else audit_all_skills()
     elif args.skill_name:
-        skill_data = find_skill_across_platforms(args.skill_name)
+        skill_data = find_skill_across_marketplaces(args.skill_name) if args.marketplaces else find_skill_across_platforms(args.skill_name)
         if not skill_data:
             print(f"ERROR: Skill '{args.skill_name}' not found on any platform")
             sys.exit(1)
