@@ -232,7 +232,7 @@ scripts/marketplace-mirror.py drift --from public --to team
 
 ## Configuration
 
-Configuration is stored in `config.json`:
+Configuration is stored in your user-local config file (created by `scripts/init.py`, typically `~/.config/skill-manager/config.json`):
 
 ```json
 {

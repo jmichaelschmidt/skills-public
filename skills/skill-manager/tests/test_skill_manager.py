@@ -51,7 +51,7 @@ class MarketplaceGeneralizationTests(unittest.TestCase):
         config = {
             'local_repos_path': '/tmp/skills-test',
             'marketplaces': {
-                'partner': {'repo': 'https://github.com/3dna/platform-skills.git'}
+                'partner': {'repo': 'https://github.com/example-org/partner-skills.git'}
             },
         }
         path = publish.get_local_repo_path(config, 'partner')

@@ -32,13 +32,13 @@ Examples:
 """
 
 import argparse
-import json
 import shutil
 import sys
 from pathlib import Path
 
+from config_resolver import load_config_required
 
-CONFIG_PATH = Path(__file__).parent.parent / 'config.json'
+
 
 DEFAULT_PLATFORMS = {
     'claude': {
@@ -65,14 +65,8 @@ DEFAULT_PLATFORMS = {
 
 
 def load_config() -> dict:
-    """Load marketplace configuration."""
-    if not CONFIG_PATH.exists():
-        print(f"ERROR: Config file not found at {CONFIG_PATH}")
-        print("Run 'scripts/init.py' to set up your marketplace configuration.")
-        sys.exit(1)
-
-    with open(CONFIG_PATH) as f:
-        return json.load(f)
+    """Load configuration."""
+    return load_config_required()
 
 
 def get_platform_paths(config: dict) -> dict:
