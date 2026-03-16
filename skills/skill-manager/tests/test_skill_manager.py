@@ -55,7 +55,7 @@ class MarketplaceGeneralizationTests(unittest.TestCase):
             },
         }
         path = publish.get_local_repo_path(config, 'partner')
-        self.assertEqual(path, Path('/tmp/skills-test/platform-skills'))
+        self.assertEqual(path, Path('/tmp/skills-test/partner-skills'))
 
     def test_local_repo_path_falls_back_to_marketplace_key(self):
         publish = load_script_module('publish.py')
