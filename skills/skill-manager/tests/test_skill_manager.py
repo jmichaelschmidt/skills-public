@@ -101,6 +101,92 @@ class BranchDetectionTests(unittest.TestCase):
         self.assertEqual(detected, 'trunk')
 
 
+class RepoHygieneTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = Path(tempfile.mkdtemp(prefix='skill-manager-tests-'))
+        self.remote = self.tempdir / 'remote.git'
+        self.seed = self.tempdir / 'seed'
+        self.clone = self.tempdir / 'clone'
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def _init_repo_with_default_branch(self, branch_name: str):
+        run(['git', 'init', '--bare', str(self.remote)])
+        run(['git', 'init', str(self.seed)])
+        run(['git', 'config', 'user.name', 'Test User'], cwd=self.seed)
+        run(['git', 'config', 'user.email', 'test@example.com'], cwd=self.seed)
+
+        (self.seed / 'README.md').write_text('seed\n')
+        run(['git', 'add', '.'], cwd=self.seed)
+        run(['git', 'commit', '-m', 'seed'], cwd=self.seed)
+        run(['git', 'branch', '-M', branch_name], cwd=self.seed)
+        run(['git', 'remote', 'add', 'origin', str(self.remote)], cwd=self.seed)
+        run(['git', 'push', '-u', 'origin', branch_name], cwd=self.seed)
+        run(['git', '--git-dir', str(self.remote), 'symbolic-ref', 'HEAD', f'refs/heads/{branch_name}'])
+        run(['git', 'clone', str(self.remote), str(self.clone)])
+
+    def test_repo_status_reports_extra_and_merged_local_branches(self):
+        hygiene = load_script_module('repo_hygiene.py')
+        self._init_repo_with_default_branch('main')
+
+        run(['git', 'checkout', '-b', 'old-branch'], cwd=self.clone)
+        run(['git', 'checkout', 'main'], cwd=self.clone)
+
+        status = hygiene.get_repo_status(self.clone, fetch=False)
+
+        self.assertEqual(status['tracked_branch'], 'main')
+        self.assertIn('old-branch', status['extra_local_branches'])
+        self.assertIn('old-branch', status['merged_local_branches'])
+        self.assertFalse(status['aligned'])
+
+    def test_prune_merged_branches_deletes_cleanup_candidate(self):
+        hygiene = load_script_module('repo_hygiene.py')
+        self._init_repo_with_default_branch('main')
+
+        run(['git', 'checkout', '-b', 'old-branch'], cwd=self.clone)
+        run(['git', 'checkout', 'main'], cwd=self.clone)
+
+        pruned = hygiene.prune_merged_branches(self.clone, 'main', {'main'})
+
+        self.assertEqual(pruned, ['old-branch'])
+        self.assertEqual(hygiene.list_local_branches(self.clone), ['main'])
+
+
+class ReadmeUpdateTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = Path(tempfile.mkdtemp(prefix='skill-manager-readme-tests-'))
+        self.repo = self.tempdir / 'repo'
+        self.repo.mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def test_update_readme_accepts_current_skill_row(self):
+        publish = load_script_module('publish.py')
+        (self.repo / 'README.md').write_text(
+            "# Repo\n\n"
+            "## Available Skills\n\n"
+            "| Skill | Description |\n"
+            "|-------|-------------|\n"
+            "| [skill-manager](skills/skill-manager/) | Current description. |\n"
+        )
+
+        ok, changed = publish.update_readme(self.repo, 'skill-manager', 'Current description.')
+
+        self.assertTrue(ok)
+        self.assertFalse(changed)
+
+    def test_update_readme_fails_when_table_section_missing(self):
+        publish = load_script_module('publish.py')
+        (self.repo / 'README.md').write_text("# Repo\n")
+
+        ok, changed = publish.update_readme(self.repo, 'skill-manager', 'Current description.')
+
+        self.assertFalse(ok)
+        self.assertFalse(changed)
+
+
 class DryRunOutputTests(unittest.TestCase):
     def test_mirror_plan_format_is_deterministic(self):
         mirror = load_script_module('marketplace-mirror.py')

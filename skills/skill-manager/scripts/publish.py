@@ -22,6 +22,7 @@ Examples:
 """
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -33,6 +34,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from config_resolver import load_config_required
 from datetime import datetime
+from repo_hygiene import detect_default_branch, get_repo_status, has_uncommitted_changes
 
 
 PUBLISHED_SKILLS_DIR = 'skills'
@@ -140,42 +142,6 @@ def run_git_command(args: list, cwd: Path, check: bool = True) -> subprocess.Com
     return result
 
 
-def detect_default_branch(repo_path: Path, remote: str = 'origin') -> str:
-    """Detect repository default branch from origin/HEAD."""
-    symbolic = run_git_command(
-        ['symbolic-ref', f'refs/remotes/{remote}/HEAD'],
-        repo_path,
-        check=False
-    )
-    if symbolic.returncode == 0:
-        head_ref = symbolic.stdout.strip()
-        if head_ref:
-            return head_ref.rsplit('/', 1)[-1]
-
-    remote_show = run_git_command(['remote', 'show', remote], repo_path, check=False)
-    if remote_show.returncode == 0:
-        for line in remote_show.stdout.splitlines():
-            line = line.strip()
-            if line.startswith('HEAD branch:'):
-                branch = line.split(':', 1)[1].strip()
-                if branch and branch != '(unknown)':
-                    return branch
-
-    current = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], repo_path, check=False)
-    if current.returncode == 0:
-        branch = current.stdout.strip()
-        if branch and branch != 'HEAD':
-            return branch
-
-    return 'main'
-
-
-def has_uncommitted_changes(repo_path: Path) -> bool:
-    """Return True when git status has tracked or untracked changes."""
-    status = run_git_command(['status', '--porcelain'], repo_path, check=False)
-    return bool(status.stdout.strip())
-
-
 def ensure_repo_cloned(config: dict, marketplace: str, branch_override: str = None) -> tuple[Path, str]:
     """Ensure the marketplace repo is cloned locally and synced to base branch."""
     repo_url = config['marketplaces'][marketplace]['repo']
@@ -201,6 +167,20 @@ def ensure_repo_cloned(config: dict, marketplace: str, branch_override: str = No
         run_git_command(['fetch', 'origin'], local_path, check=False)
 
     base_branch = branch_override or detect_default_branch(local_path)
+    repo_status = get_repo_status(local_path, branch_override=base_branch, fetch=False)
+
+    if repo_status['merged_local_branches']:
+        print(f"ERROR: Merged local branches are still present in {local_path}")
+        for branch in repo_status['merged_local_branches']:
+            print(f"  - {branch}")
+        print("Run 'scripts/marketplace-sync.py --marketplace "
+              f"{marketplace} --prune-merged' and retry publish.")
+        sys.exit(1)
+
+    if repo_status['extra_local_branches']:
+        print(f"WARNING: Extra local branches present in {local_path}")
+        print(f"  {', '.join(repo_status['extra_local_branches'])}")
+        print("  Review these branches before publishing if they are no longer needed.")
 
     checkout_result = run_git_command(['checkout', base_branch], local_path, check=False)
     if checkout_result.returncode != 0:
@@ -281,21 +261,22 @@ def update_marketplace_json(repo_path: Path, skill_name: str, skill_description:
     return marketplace.get('metadata', {}).get('version', '1.0.0')
 
 
-def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_run: bool = False) -> bool:
-    """Update README Available Skills table. Returns True if README changed."""
+def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_run: bool = False) -> tuple[bool, bool]:
+    """Validate and update the README Available Skills table.
+
+    Returns (ok, changed).
+    """
     readme_path = repo_path / 'README.md'
 
     if not readme_path.exists():
-        if not dry_run:
-            print(f"  Warning: README.md not found at {readme_path}, skipping README update")
-        return False
+        print(f"  ERROR: README.md not found at {readme_path}")
+        return (False, False)
 
     content = readme_path.read_text()
     table_marker = "## Available Skills"
     if table_marker not in content:
-        if not dry_run:
-            print("  Warning: No '## Available Skills' section found in README.md, skipping")
-        return False
+        print("  ERROR: No '## Available Skills' section found in README.md")
+        return (False, False)
 
     short_description = skill_description
     if len(short_description) > 200:
@@ -321,11 +302,13 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
                         print("  [DRY RUN] Would update skill description in README.md")
                     else:
                         print("  Updated skill description in README.md")
+                else:
+                    print("  README.md skill entry already current")
                 break
 
         if updated and not dry_run:
             readme_path.write_text('\n'.join(lines))
-        return updated
+        return (True, updated)
 
     lines = content.split('\n')
     table_start = None
@@ -354,9 +337,8 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
                 break
 
     if insert_index is None:
-        if not dry_run:
-            print("  Warning: Could not find proper location in README.md table, skipping")
-        return False
+        print("  ERROR: Could not find a valid insertion point in README.md")
+        return (False, False)
 
     if dry_run:
         print("  [DRY RUN] Would add skill to README.md Available Skills table")
@@ -365,7 +347,7 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
         readme_path.write_text('\n'.join(lines))
         print("  Added skill to README.md Available Skills table")
 
-    return True
+    return (True, True)
 
 
 def create_symlink_to_codex(skill_path: Path, skill_name: str, dry_run: bool = False):
@@ -480,7 +462,10 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
         else:
             print("  Skipping README auto-update for in-development publish")
     else:
-        update_readme(repo_path, skill_name, description, dry_run)
+        readme_ok, _ = update_readme(repo_path, skill_name, description, dry_run)
+        if not readme_ok:
+            print("ERROR: README.md must be current before publish can continue")
+            sys.exit(1)
 
     commit_message = custom_message or (
         f"Add {skill_name} skill (in development)" if in_development else f"Add {skill_name} skill"

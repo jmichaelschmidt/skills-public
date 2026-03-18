@@ -127,9 +127,10 @@ scripts/publish.py ~/.claude/skills/my-skill --to partner --in-development
 Standard publish will:
 1. Copy the skill to your team marketplace repo
 2. Update marketplace.json
-3. Update the README.md "Available Skills" table (for new skills)
-4. Create a PR for review
-5. Sync to other platforms (if configured)
+3. Validate and refresh the README.md "Available Skills" table entry
+4. Push the publish branch to origin
+5. Create and merge a PR back to the tracked default branch
+6. Sync to other platforms (if configured)
 
 In-development publish (`--in-development`) will:
 1. Copy the skill to `skills-in-development/`
@@ -141,7 +142,7 @@ If the source path includes `skills-in-development/`, publish mode is inferred a
 
 If you don't specify `--to`, you'll be prompted to choose.
 
-**Note on README updates:** When publishing a new skill, the README.md is automatically updated with the skill's entry in the "Available Skills" table. For updates to existing skills, README changes are optional and only made if the skill's description has changed.
+**README rule:** For standard publishes, the repository README.md must stay current. `publish.py` now validates the "Available Skills" table and updates the skill row automatically. If the README is missing or malformed, publish should fail until the repo documentation is fixed.
 
 ### Sync Marketplace Repos
 
@@ -151,9 +152,20 @@ Pull latest from your marketplace repositories:
 scripts/marketplace-sync.py
 scripts/marketplace-sync.py --marketplace team
 scripts/marketplace-sync.py --status
+scripts/marketplace-sync.py --status --marketplace team
 scripts/marketplace-sync.py --branch master
 scripts/marketplace-sync.py --auto-stash
+scripts/marketplace-sync.py --prune-merged
 ```
+
+`marketplace-sync.py --status` should be your first repo hygiene check. It reports:
+- Current checked-out branch versus the tracked default branch
+- Ahead/behind drift from `origin/<default-branch>`
+- Uncommitted changes
+- Extra local branches
+- Merged local branches that are safe cleanup candidates
+
+Use `--prune-merged` to delete local branches that are already merged into the tracked branch. Review unmerged extra branches manually before deleting them.
 
 ### Mirror Canonical Skills to Another Marketplace
 
@@ -217,6 +229,10 @@ scripts/validate.py <skill-path>
 ### Operator Quick Commands
 
 ```bash
+# Repo hygiene
+scripts/marketplace-sync.py --status
+scripts/marketplace-sync.py --prune-merged
+
 # List
 scripts/inventory.py
 
@@ -229,6 +245,19 @@ scripts/marketplace-mirror.py mirror --from public --to team --source-ref main -
 # Audit/drift
 scripts/marketplace-mirror.py drift --from public --to team
 ```
+
+### Marketplace Repo Checklist
+
+Run this checklist before and after any marketplace skill update:
+
+1. Run `scripts/marketplace-sync.py --status` and confirm each repo is on its tracked default branch.
+2. Confirm each repo is clean and not ahead/behind `origin/<default-branch>`.
+3. Run `scripts/marketplace-sync.py --prune-merged` to clear merged local branches.
+4. Review any remaining extra local branches and either delete them or keep them intentionally.
+5. Publish or mirror the skill.
+6. Push the branch and merge it back into the tracked default branch.
+7. Re-run `scripts/marketplace-sync.py --status` on the default branch and verify the repo is aligned.
+8. Verify the repo `README.md` "Available Skills" table matches the published skills.
 
 ## Configuration
 

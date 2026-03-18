@@ -21,7 +21,6 @@ Examples:
 """
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
@@ -30,9 +29,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from config_resolver import load_config_required
-
-
-
+from repo_hygiene import detect_default_branch, get_repo_status, has_uncommitted_changes, prune_merged_branches, run_git
 
 def load_config() -> dict:
     """Load configuration."""
@@ -56,97 +53,13 @@ def get_local_repo_path(config: dict, marketplace: str) -> Path:
     return base_path / marketplace
 
 
-def run_git(args: list, cwd: Path, check: bool = False) -> subprocess.CompletedProcess:
-    """Run a git command."""
-    result = subprocess.run(
-        ['git'] + args,
-        cwd=cwd,
-        capture_output=True,
-        text=True
-    )
-    if check and result.returncode != 0:
-        print(f"ERROR: git {' '.join(args)} failed in {cwd}")
-        print(result.stderr.strip())
-        sys.exit(1)
-    return result
-
-
-def detect_default_branch(repo_path: Path, remote: str = 'origin') -> str:
-    """Detect default branch from remote HEAD."""
-    symbolic = run_git(['symbolic-ref', f'refs/remotes/{remote}/HEAD'], repo_path)
-    if symbolic.returncode == 0:
-        ref = symbolic.stdout.strip()
-        if ref:
-            return ref.rsplit('/', 1)[-1]
-
-    remote_show = run_git(['remote', 'show', remote], repo_path)
-    if remote_show.returncode == 0:
-        for line in remote_show.stdout.splitlines():
-            line = line.strip()
-            if line.startswith('HEAD branch:'):
-                branch = line.split(':', 1)[1].strip()
-                if branch and branch != '(unknown)':
-                    return branch
-
-    current = run_git(['rev-parse', '--abbrev-ref', 'HEAD'], repo_path)
-    if current.returncode == 0:
-        branch = current.stdout.strip()
-        if branch and branch != 'HEAD':
-            return branch
-
-    return 'main'
-
-
-def has_uncommitted_changes(repo_path: Path) -> bool:
-    """Return True when repository has local changes."""
-    status = run_git(['status', '--porcelain'], repo_path)
-    return bool(status.stdout.strip())
-
-
-def get_repo_status(repo_path: Path, branch_override: str = None) -> dict:
-    """Get status summary for a local repository."""
-    status = {
-        'exists': repo_path.exists(),
-        'branch': None,
-        'tracked_branch': None,
-        'ahead': 0,
-        'behind': 0,
-        'dirty': False,
-        'skills_count': 0,
-    }
-
-    if not status['exists']:
-        return status
-
-    current_branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'], repo_path)
-    if current_branch.returncode == 0:
-        status['branch'] = current_branch.stdout.strip()
-
-    run_git(['fetch', 'origin'], repo_path)
-
-    tracked_branch = branch_override or detect_default_branch(repo_path)
-    status['tracked_branch'] = tracked_branch
-
-    revlist = run_git(['rev-list', '--left-right', '--count', f'HEAD...origin/{tracked_branch}'], repo_path)
-    if revlist.returncode == 0:
-        counts = revlist.stdout.strip().split()
-        if len(counts) == 2:
-            status['ahead'] = int(counts[0])
-            status['behind'] = int(counts[1])
-
-    status['dirty'] = has_uncommitted_changes(repo_path)
-
-    skills_dir = repo_path / 'skills'
-    if skills_dir.exists():
-        status['skills_count'] = len([
-            d for d in skills_dir.iterdir()
-            if d.is_dir() and (d / 'SKILL.md').exists()
-        ])
-
-    return status
-
-
-def sync_repo(repo_path: Path, marketplace: str, branch_override: str = None, auto_stash: bool = False) -> bool:
+def sync_repo(
+    repo_path: Path,
+    marketplace: str,
+    branch_override: str = None,
+    auto_stash: bool = False,
+    prune_merged: bool = False,
+) -> bool:
     """Pull latest changes for a repository."""
     print(f"\nSyncing {marketplace}...")
 
@@ -189,6 +102,15 @@ def sync_repo(repo_path: Path, marketplace: str, branch_override: str = None, au
             if output:
                 print(f"  {output}")
 
+        keep_branches = {target_branch}
+        pruned_branches = []
+        if prune_merged:
+            pruned_branches = prune_merged_branches(repo_path, target_branch, keep_branches)
+            if pruned_branches:
+                print(f"  Pruned merged local branches: {', '.join(pruned_branches)}")
+            else:
+                print("  No merged local branches to prune")
+
         if stashed:
             print("  Restoring stashed changes...")
             stash_pop = run_git(['stash', 'pop'], repo_path)
@@ -227,22 +149,18 @@ def show_status(config: dict, marketplaces: list, branch_override: str = None):
             print("  Status: NOT CLONED")
             continue
 
-        status_parts = []
-        if status['dirty']:
-            status_parts.append('uncommitted changes')
-        if status['behind'] > 0:
-            status_parts.append(f"{status['behind']} behind")
-        if status['ahead'] > 0:
-            status_parts.append(f"{status['ahead']} ahead")
-
-        if status_parts:
-            print(f"  Status: {', '.join(status_parts)}")
+        if status['aligned']:
+            print("  Status: aligned")
         else:
-            print("  Status: up to date")
+            print(f"  Status: {'; '.join(status['issues'])}")
 
         print(f"  Branch: {status['branch']}")
         print(f"  Tracking: origin/{status['tracked_branch']}")
         print(f"  Skills: {status['skills_count']}")
+        if status['merged_local_branches']:
+            print(f"  Merged cleanup candidates: {', '.join(status['merged_local_branches'])}")
+        if status['extra_local_branches']:
+            print(f"  Extra local branches: {', '.join(status['extra_local_branches'])}")
 
     print()
 
@@ -276,6 +194,8 @@ def main():
                         help='Explicitly stash and restore local changes before pull')
     parser.add_argument('--status', action='store_true',
                         help='Show status without pulling')
+    parser.add_argument('--prune-merged', action='store_true',
+                        help='Delete local branches already merged into the tracked branch')
 
     args = parser.parse_args()
 
@@ -309,6 +229,7 @@ def main():
             marketplace,
             branch_override=args.branch,
             auto_stash=args.auto_stash,
+            prune_merged=args.prune_merged,
         )
 
     print("\n" + "=" * 50)
