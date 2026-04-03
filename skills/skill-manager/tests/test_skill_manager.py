@@ -2,6 +2,7 @@
 """Script-level regression tests for skill-manager hardening."""
 
 import importlib.util
+import os
 import shutil
 import subprocess
 import tempfile
@@ -26,7 +27,11 @@ def load_script_module(script_name: str):
 
 def run(cmd: list, cwd: Path = None):
     """Run shell command and return completed process."""
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True)
+    env = dict(os.environ)
+    # Test fixtures create temporary repos on main/trunk; allow those isolated commits.
+    env['GIT_ALLOW_PROTECTED_BRANCH'] = '1'
+    env['GIT_ALLOW_PRIMARY_CHECKOUT'] = '1'
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True, env=env)
 
 
 class InventoryCompatibilityTests(unittest.TestCase):
