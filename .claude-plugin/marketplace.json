@@ -1,12 +1,12 @@
 {
   "name": "skills-public",
   "owner": {
-    "name": "",
-    "email": "owner@example.com"
+    "name": "Michael Schmidt",
+    "email": "42623536+jmichaelschmidt@users.noreply.github.com"
   },
   "metadata": {
     "description": "Freely available skills for anyone",
-    "version": "1.0.1"
+    "version": "1.0.3"
   },
   "plugins": [
     {
@@ -15,6 +15,8 @@
       "source": "./",
       "strict": false,
       "skills": [
+        "./skills/prd-executor",
+        "./skills/prd-planner",
         "./skills/skill-manager"
       ]
     }
