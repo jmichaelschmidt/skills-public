@@ -5,37 +5,32 @@ description: Manage, sync, and publish Agent Skills across multiple AI platforms
 
 # Skill Manager
 
-Manage Agent Skills across multiple AI platforms and tiered marketplace repositories.
+Manage repo-canonical Agent Skills across marketplace repositories and runtime install surfaces.
 
 ## Core Capabilities
 
-1. **Multi-Platform Sync** - Deploy skills across Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot
-2. **Inventory** - Discover and list all skills across platform locations
-3. **Publish** - Push skills to tiered GitHub marketplace repositories (private/team/public)
-4. **Marketplace Distribute** - Make marketplace-installed skills available to other AI platforms via symlinks
+1. **Runtime Install** - Install or refresh released skills into the canonical machine runtime path
+2. **Development Sync** - Sync unpublished local skills across Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot
+3. **Inventory** - Discover and list all skills across platform locations
+4. **Publish** - Push skills to tiered GitHub marketplace repositories (private/team/public)
 5. **Audit** - Compare skill versions, detect drift, identify inconsistencies
 6. **Validate** - Check skill compliance with the Agent Skills specification
 
-## Source of Truth: How Syncing Works
+## Source of Truth
 
-Skill-manager uses a **single source of truth** model. You designate one platform as your "source" where you create and edit skills, and skill-manager syncs them one-way to other platforms.
+Skill-manager uses a **repo-canonical** model.
 
-**Why one-way sync?**
-- Prevents conflicts when the same skill exists on multiple platforms
-- Clear ownership: you always know where the authoritative version lives
-- Simple mental model: edit in one place, distribute everywhere
+The intended release flow is:
 
-**Example:** If Claude Code is your source of truth:
-- Create and edit skills in `~/.claude/skills/`
-- Run `scripts/sync.py --all` to distribute to Codex, Gemini, Copilot
-- Skills created directly in `~/.codex/skills/` will NOT sync back to Claude
+1. author in a git repo checkout
+2. publish to a marketplace repo
+3. install the published artifact into `~/.claude/skills/<skill>`
+4. mirror `~/.codex/skills/<skill>` to the Claude install
+5. if the skill materializes repo-local files, run its repo refresh flow separately
 
-**If you accidentally create a skill on the wrong platform:**
-1. Copy it manually to your source platform's skills directory
-2. Run sync to distribute it properly
-3. Optionally delete the original from the non-source platform
+Do not treat marketplace caches under `~/.claude/plugins/marketplaces/...` as the canonical runtime path.
 
-**To change your source of truth:** Edit `config.json` and set `"is_source": true` on your preferred platform (and `false` on all others), or re-run `scripts/init.py`.
+`scripts/sync.py` still exists for development-only movement of unpublished local skills. It is not the canonical release/install path.
 
 ## Supported Platforms
 
@@ -58,30 +53,48 @@ scripts/init.py
 
 This will:
 1. Detect installed AI platforms on your system
-2. Choose which platform is your "source of truth"
-3. Configure which platforms to sync skills to
-4. Set sync mode (symlink or copy)
+2. Configure which runtime platforms to manage
+3. Set the canonical runtime policy (`claude` primary, optional Codex mirror)
+4. Set development sync mode for ad hoc unpublished skill syncs
 5. Optionally configure marketplace repositories
 
-### Sync Skills Between Platforms
+### Install Released Skills Into Runtime
 
-After setup, sync a skill from your source platform to all configured targets:
+Install a released skill from a local marketplace clone into the canonical machine runtime path:
 
 ```bash
-scripts/sync.py ~/.claude/skills/my-skill
+scripts/install-from-marketplace.py --marketplace team --skill my-skill
 ```
 
-Or sync all skills at once:
+This command:
+
+1. reads the published artifact from the local marketplace clone
+2. fully replaces `~/.claude/skills/<skill>`
+3. recreates or verifies `~/.codex/skills/<skill>` as a symlink to the Claude install
+4. removes stale files that disappeared from the published artifact
+
+Use `--all` to refresh every published skill from a marketplace clone.
+
+### Sync Local Development Skills Between Platforms
+
+For unpublished or branch-only work, you can still sync a local skill directly:
 
 ```bash
-scripts/sync.py --all
+scripts/sync.py /path/to/local/my-skill --to codex
+```
+
+Or sync all skills from a specific runtime platform:
+
+```bash
+scripts/sync.py --all --from-platform claude
 ```
 
 Options:
 - `--to claude,codex,gemini,copilot` - Override target platforms
 - `--to auto` - Auto-detect installed platforms
 - `--to all` - Sync to all known platforms
-- `--mode symlink|copy` - Override sync mode
+- `--mode symlink|copy` - Override development sync mode
+- `--from-platform claude|codex|gemini|copilot` - Required for `--all` unless legacy config still sets one
 - `--dry-run` - Preview changes without applying
 - `--force` - Overwrite existing skills without prompting
 - `--all` - Sync all skills from source platform
@@ -184,34 +197,24 @@ scripts/marketplace-mirror.py drift --from public --to partner
 scripts/marketplace-mirror.py drift --from public --to partner --source-ref v1.2.0
 ```
 
-### Distribute Marketplace Skills to Other Platforms
+### Audit Runtime Drift
 
-Make skills from your local marketplace clones available to other AI assistants (Codex, Gemini, Copilot) via symlinks. Claude Code is skipped by default since it has native marketplace access.
+Audit how a skill moves from repo source to marketplace artifact to runtime install:
 
 ```bash
-scripts/marketplace-distribute.py                       # Distribute all marketplace skills
-scripts/marketplace-distribute.py --marketplace team    # Only from team marketplace
-scripts/marketplace-distribute.py --skill my-skill      # Only distribute one skill
-scripts/marketplace-distribute.py --to codex,gemini     # Only to specific platforms
-scripts/marketplace-distribute.py --dry-run             # Preview what would happen
-scripts/marketplace-distribute.py --list                # List available marketplace skills
-scripts/marketplace-distribute.py --status              # Show distribution status
+scripts/audit-runtime.py my-skill --marketplace team
+scripts/audit-runtime.py my-skill --marketplace team --source ~/GitHub/skills-team/skills/my-skill
 ```
 
-Options:
-- `--marketplace NAME` - Only distribute from specific marketplace
-- `--skill NAME` - Only distribute a specific skill by name
-- `--to PLATFORMS` - Target platforms: codex, gemini, copilot, all
-- `--include-claude` - Also create symlinks for Claude (normally skipped)
-- `--dry-run` - Preview changes without applying
-- `--force` - Overwrite existing skills without prompting
-- `--list` - List available marketplace skills
-- `--status` - Show current distribution status
+This reports:
 
-**How it works:**
-- Scans your local marketplace repo clones under `local_repos_path` from `config.json`
-- Creates symlinks in target platform skill directories pointing to marketplace skills
-- Skips Claude Code by default (it already has access via the plugin system)
+- repo source vs marketplace artifact
+- marketplace artifact vs Claude runtime copy
+- Codex symlink status vs the Claude runtime copy
+
+### Legacy Marketplace Distribution
+
+`marketplace-distribute.py` remains available for advanced or legacy workflows that intentionally symlink marketplace clones into other platform skill directories. It is not the recommended release/install path for Claude plus Codex.
 
 ### Audit Skills for Drift
 
@@ -233,16 +236,22 @@ scripts/validate.py <skill-path>
 scripts/marketplace-sync.py --status
 scripts/marketplace-sync.py --prune-merged
 
-# List
+# List discovered skills
 scripts/inventory.py
 
 # Publish
 scripts/publish.py ~/.claude/skills/my-skill --to team
 
+# Install released runtime copy
+scripts/install-from-marketplace.py --marketplace team --skill my-skill
+
 # Mirror
 scripts/marketplace-mirror.py mirror --from public --to team --source-ref main --skill my-skill
 
-# Audit/drift
+# Runtime audit
+scripts/audit-runtime.py my-skill --marketplace team
+
+# Marketplace drift
 scripts/marketplace-mirror.py drift --from public --to team
 ```
 
@@ -268,26 +277,27 @@ Configuration is stored in your user-local config file (created by `scripts/init
   "platforms": {
     "claude": {
       "enabled": true,
-      "user_path": "~/.claude/skills",
-      "is_source": true
+      "user_path": "~/.claude/skills"
     },
     "codex": {
       "enabled": true,
-      "user_path": "~/.codex/skills",
-      "is_source": false
+      "user_path": "~/.codex/skills"
     },
     "gemini": {
       "enabled": false,
-      "user_path": "~/.gemini/skills",
-      "is_source": false
+      "user_path": "~/.gemini/skills"
     },
     "copilot": {
       "enabled": false,
-      "user_path": "~/.copilot/skills",
-      "is_source": false
+      "user_path": "~/.copilot/skills"
     }
   },
-  "sync_mode": "symlink",
+  "runtime": {
+    "primary_platform": "claude",
+    "codex_mirrors_claude": true
+  },
+  "development_sync_mode": "copy",
+  "sync_mode": "copy",
   "marketplaces": {
     "private": {
       "repo": "https://github.com/you/skills-private",
@@ -317,8 +327,10 @@ Configuration is stored in your user-local config file (created by `scripts/init
 
 | Field | Description |
 |-------|-------------|
-| `platforms` | Platform configurations (enabled, path, source) |
-| `sync_mode` | Default sync mode: `symlink` or `copy` |
+| `platforms` | Platform configurations (enabled, runtime path) |
+| `runtime` | Canonical runtime policy (primary platform and Codex mirror behavior) |
+| `development_sync_mode` | Default mode for ad hoc `sync.py` use |
+| `sync_mode` | Legacy alias preserved for backward compatibility |
 | `marketplaces` | GitHub repo URLs keyed by marketplace name |
 | `owner` | Your name and email for commits |
 | `local_repos_path` | Where marketplace repos are cloned |
@@ -375,7 +387,7 @@ Each marketplace repo follows this structure:
 
 ### Step 1: Develop Locally
 
-Create and test your skill in your source platform's skills directory:
+Create and test your skill in a git repo checkout:
 
 ```
 my-skill/
@@ -388,30 +400,30 @@ my-skill/
 ### Step 2: Validate
 
 ```bash
-scripts/validate.py ~/.claude/skills/my-skill
+scripts/validate.py /path/to/repo/skills/my-skill
 ```
 
 ### Step 3: Publish
 
 ```bash
-scripts/publish.py ~/.claude/skills/my-skill --to team
+scripts/publish.py /path/to/repo/skills/my-skill --to team
 # For alpha/in-progress skills that should not be marketplace-installable:
-scripts/publish.py ~/.claude/skills/my-skill --to team --in-development
+scripts/publish.py /path/to/repo/skills/my-skill --to team --in-development
 ```
 
 ### Step 4: Merge PR
 
 Review and merge the PR created in your marketplace repo.
 
-### Step 5: Users Install
+### Step 5: Install Runtime Copy
 
-Users add your marketplace and install:
+Refresh the canonical machine runtime copy from the published marketplace artifact:
 
+```bash
+scripts/install-from-marketplace.py --marketplace team --skill my-skill
 ```
-/plugin marketplace add your-org/your-marketplace-repo
-```
 
-Then browse skills in the `/plugin` UI under the Discover tab.
+If the machine uses Codex, this command should also verify or recreate the Codex symlink to the Claude runtime copy.
 
 ## Cross-Platform Skill Development
 
@@ -421,12 +433,12 @@ Then browse skills in the `/plugin` UI under the Discover tab.
 - Use environment detection if behavior must differ
 - Test on multiple platforms before publishing
 
-### Sync Modes
+### Development Sync Modes
 
 | Mode | Pros | Cons |
 |------|------|------|
-| **symlink** | Changes propagate instantly, saves disk space | Requires symlink support |
-| **copy** | Works everywhere, independent copies | Must re-sync to propagate changes |
+| **copy** | Safe for unpublished development syncs | Must re-sync to propagate changes |
+| **symlink** | Useful for advanced/temporary local workflows | Not the recommended release runtime model |
 
 ### Skill Specification Compliance
 
@@ -447,9 +459,9 @@ Then browse skills in the `/plugin` UI under the Discover tab.
 ### Sync Not Working
 
 1. Check your config: `cat ~/.config/skill-manager/config.json`
-2. Verify source platform is set: look for `"is_source": true`
-3. Verify target platforms are enabled: look for `"enabled": true`
-4. Run with `--dry-run` to preview: `scripts/sync.py --all --dry-run`
+2. Verify target platforms are enabled: look for `"enabled": true`
+3. If using `--all`, pass `--from-platform` or set a runtime primary platform
+4. Run with `--dry-run` to preview: `scripts/sync.py --all --from-platform claude --dry-run`
 
 ### Platform Not Detected
 
@@ -463,14 +475,14 @@ Then browse skills in the `/plugin` UI under the Discover tab.
 2. Verify repository URLs in config.json
 3. Run `scripts/marketplace-sync.py --status` to check repo state
 
-### Symlink Issues
+### Codex Mirror Issues
 
 ```bash
-# Check if symlink is valid
-ls -la ~/.codex/skills/my-skill
+# Check runtime install
+ls -la ~/.claude/skills/my-skill
 
-# Check target exists
-ls -la $(readlink ~/.codex/skills/my-skill)
+# Check Codex mirror
+ls -la ~/.codex/skills/my-skill
 ```
 
 ## IDE Reload Reminder

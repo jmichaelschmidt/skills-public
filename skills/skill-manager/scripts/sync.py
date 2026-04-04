@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Skill Sync - Deploy skills across multiple AI platforms.
+Skill Sync - Development-only sync for unpublished skills across AI platforms.
 
 Usage:
     sync.py <skill-path> [options]
     sync.py --all [options]
 
 Options:
+    --from-platform PLATFORM  Source platform for --all (legacy config fallback if omitted)
     --to PLATFORMS       Target platforms (default: from config, or 'auto')
                          Can be: claude, codex, gemini, copilot, all, auto
     --dry-run           Preview changes without applying
@@ -16,8 +17,8 @@ Options:
 
 Examples:
     sync.py ./my-skill                      # Sync using config settings
-    sync.py ~/.claude/skills/my-skill       # Sync from Claude to configured targets
-    sync.py --all                           # Sync all skills from source to targets
+    sync.py ~/.claude/skills/my-skill       # Sync one local runtime skill to configured targets
+    sync.py --all --from-platform claude    # Sync all local Claude skills to configured targets
     sync.py ./my-skill --to codex,gemini    # Sync to specific platforms
     sync.py ./my-skill --to auto            # Auto-detect installed platforms
     sync.py ./my-skill --mode copy          # Force copy instead of symlink
@@ -90,11 +91,18 @@ def detect_platforms() -> list:
 
 
 def get_source_platform(config: dict = None) -> str:
-    """Get the source platform from config."""
+    """Get the source platform from config with runtime-aware fallback."""
+    if config:
+        runtime = config.get('runtime', {})
+        primary = runtime.get('primary_platform')
+        if primary:
+            return primary
     if config and 'platforms' in config:
         for platform, pconfig in config['platforms'].items():
             if pconfig.get('is_source'):
                 return platform
+        if config['platforms'].get('claude', {}).get('enabled'):
+            return 'claude'
     return None
 
 
@@ -103,16 +111,16 @@ def get_target_platforms(config: dict = None) -> list:
     targets = []
     if config and 'platforms' in config:
         for platform, pconfig in config['platforms'].items():
-            if pconfig.get('enabled') and not pconfig.get('is_source'):
+            if pconfig.get('enabled'):
                 targets.append(platform)
     return targets
 
 
 def get_sync_mode(config: dict = None) -> str:
-    """Get sync mode from config."""
+    """Get development sync mode from config."""
     if config:
-        return config.get('sync_mode', 'symlink')
-    return 'symlink'
+        return config.get('development_sync_mode', config.get('sync_mode', 'copy'))
+    return 'copy'
 
 
 def validate_source_skill(skill_path: Path) -> tuple:
@@ -235,6 +243,8 @@ def main():
     parser = argparse.ArgumentParser(description='Sync skills across AI platforms')
     parser.add_argument('skill_path', type=Path, nargs='?',
                         help='Path to the skill directory to sync')
+    parser.add_argument('--from-platform',
+                        help='Source platform for --all: claude, codex, gemini, copilot')
     parser.add_argument('--to',
                         help='Target platforms: claude, codex, gemini, copilot, all, auto')
     parser.add_argument('--dry-run', action='store_true',
@@ -277,10 +287,10 @@ def main():
 
     # Handle --all flag
     if args.all:
-        source_platform = get_source_platform(config)
+        source_platform = args.from_platform or get_source_platform(config)
         if not source_platform:
-            print("No source platform configured.")
-            print("Run 'scripts/init.py' to set up your source platform.")
+            print("No source platform resolved for --all.")
+            print("Use --from-platform or configure a runtime primary platform.")
             sys.exit(1)
 
         source_path = platform_paths.get(source_platform)

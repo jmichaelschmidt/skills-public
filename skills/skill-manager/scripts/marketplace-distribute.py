@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Marketplace Distribute - Make marketplace skills available to other AI platforms via symlinks.
+Marketplace Distribute - Legacy helper that symlinks marketplace clone skills into other platform paths.
 
 This script creates symlinks in other AI platforms' skill directories (Codex, Gemini, Copilot)
 pointing to skills in your local marketplace repository clones. Since Claude Code already has
 access to marketplace skills through its plugin system, it is skipped by default.
+
+For the recommended Claude plus Codex release model, prefer `install-from-marketplace.py`.
 
 Usage:
     marketplace-distribute.py [options]

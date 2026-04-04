@@ -349,37 +349,6 @@ def update_readme(repo_path: Path, skill_name: str, skill_description: str, dry_
 
     return (True, True)
 
-
-def create_symlink_to_codex(skill_path: Path, skill_name: str, dry_run: bool = False):
-    """Create a symlink in the Codex skills directory."""
-    codex_skills_dir = Path.home() / '.codex' / 'skills'
-    codex_skill_path = codex_skills_dir / skill_name
-
-    if dry_run:
-        print(f"  [DRY RUN] Would symlink {codex_skill_path} -> {skill_path}")
-        return
-
-    codex_skills_dir.mkdir(parents=True, exist_ok=True)
-
-    if codex_skill_path.exists() or codex_skill_path.is_symlink():
-        if codex_skill_path.is_symlink():
-            codex_skill_path.unlink()
-        else:
-            shutil.rmtree(codex_skill_path)
-
-    codex_skill_path.symlink_to(skill_path.resolve())
-    print(f"  Symlinked to Codex: {codex_skill_path} -> {skill_path}")
-
-
-def repo_slug_from_url(repo_url: str) -> str:
-    """Return owner/repo from a URL."""
-    clean = repo_url.rstrip('/').replace('.git', '')
-    parts = clean.split('/')
-    if len(parts) >= 2:
-        return f"{parts[-2]}/{parts[-1]}"
-    return clean
-
-
 def publish_skill(skill_path: Path, marketplace: str, config: dict,
                   dry_run: bool = False, no_pr: bool = False,
                   custom_message: str = None, branch_override: str = None,
@@ -520,9 +489,6 @@ def publish_skill(skill_path: Path, marketplace: str, config: dict,
     elif not no_pr:
         print("  [DRY RUN] Would create PR")
 
-    if config.get('codex_symlink', True):
-        create_symlink_to_codex(skill_path, skill_name, dry_run)
-
     if not dry_run:
         run_git_command(['checkout', base_branch], repo_path)
 
@@ -602,9 +568,6 @@ def main():
         print(f"PR URL: {results['pr_url']}")
 
     if results['success'] and not args.dry_run:
-        repo_url = config['marketplaces'][results['marketplace']].get('repo', '')
-        repo_slug = repo_slug_from_url(repo_url)
-
         print("\n" + "-" * 50)
         print("NEXT STEPS:")
         print("-" * 50)
@@ -614,8 +577,9 @@ def main():
             print(f"2. Keep `{results['skill_name']}` in `{IN_DEVELOPMENT_SKILLS_DIR}/` until approved.")
             print("3. Promote to `skills/` and update marketplace.json only when ready for install.")
         else:
-            print(f"2. Once merged, users can install via:")
-            print(f"   /plugin marketplace add {repo_slug}")
+            print("2. Once merged, refresh the machine runtime copy from the published marketplace artifact:")
+            print(f"   scripts/install-from-marketplace.py --marketplace {results['marketplace']} --skill {results['skill_name']}")
+            print("3. If the skill materializes repo-local files, run its repo refresh flow after the machine install.")
         print("-" * 50)
 
     sys.exit(0 if results['success'] else 1)

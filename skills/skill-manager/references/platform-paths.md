@@ -68,6 +68,12 @@ Claude Code discovers skills in this order:
 2. Global user skills (`~/.claude/skills/`)
 3. Marketplace skills (`~/.claude/plugins/marketplaces/*/skills/`)
 
+### Runtime Guidance
+
+For managed multi-machine workflows, treat `~/.claude/skills/` as the canonical runtime install surface even when a skill was published through a marketplace.
+
+Use marketplace caches under `~/.claude/plugins/marketplaces/*/skills/` as distribution artifacts, not as the path you intentionally target for runtime symlinks or repo refresh logic.
+
 ## OpenAI Codex
 
 ### Global Skills
@@ -155,30 +161,24 @@ CLAUDE_CONFIG_DIR    # Override ~/.claude location
 CODEX_CONFIG_DIR     # Override ~/.codex location (if supported)
 ```
 
-## Symlink Strategy
+## Recommended Runtime Model
 
-For maintaining skills across platforms from a single source:
+For a released Claude plus Codex workflow:
 
 ```bash
-# Create source repository
-mkdir -p ~/projects/my-skills/skill-a
-# ... create SKILL.md and resources
+# Install the released skill into Claude's runtime surface
+cp -R /path/to/published-skill ~/.claude/skills/skill-a
 
-# Symlink to Claude Code
-ln -s ~/projects/my-skills/skill-a ~/.claude/skills/skill-a
-
-# Symlink to Codex
-ln -s ~/projects/my-skills/skill-a ~/.codex/skills/skill-a
+# Mirror Codex to the Claude-installed copy
+ln -s ~/.claude/skills/skill-a ~/.codex/skills/skill-a
 ```
 
 Advantages:
-- Single source of truth
-- Changes propagate instantly
-- Version control in one location
+- One canonical runtime copy on the machine
+- Codex and Claude read the same installed files
+- Removed files disappear cleanly on replace-based refresh
 
-Disadvantages:
-- Broken symlinks if source moves
-- Platform-specific changes not possible
+Do not symlink both platforms directly to an authoring repo checkout or to a marketplace cache when you want a released, stable install surface.
 
 ## File System Permissions
 
@@ -215,9 +215,9 @@ ls -la ~/.claude/skills/my-skill
 # Check target exists
 ls -la $(readlink ~/.claude/skills/my-skill)
 
-# Fix broken symlink
-rm ~/.claude/skills/my-skill
-ln -s /correct/path ~/.claude/skills/my-skill
+# Fix broken Codex mirror
+rm ~/.codex/skills/my-skill
+ln -s ~/.claude/skills/my-skill ~/.codex/skills/my-skill
 ```
 
 ### Permission Denied on Scripts

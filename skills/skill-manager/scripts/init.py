@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Skill Manager Init - Set up platforms and marketplace repositories.
+Skill Manager Init - Set up runtime install paths and marketplace repositories.
 
 Usage:
     init.py [options]
@@ -12,13 +12,13 @@ Options:
 
 This script will:
 1. Detect installed AI platforms (Claude, Codex, Gemini, Copilot)
-2. Configure which platform is your source of truth
-3. Set up sync preferences (symlink vs copy)
+2. Configure which runtime platforms to manage
+3. Set up the recommended Claude-primary runtime model and development sync preferences
 4. Optionally configure marketplace repositories for skill distribution
 
 Examples:
     init.py                      # Full interactive setup
-    init.py --skip-marketplaces  # Just configure platform sync
+    init.py --skip-marketplaces  # Just configure runtime install paths
     init.py --org my-org         # Use specific org for team/public repos
 """
 
@@ -87,12 +87,17 @@ def get_default_config() -> dict:
     """Return default configuration for new users."""
     return {
         "platforms": {
-            "claude": {"enabled": False, "user_path": "~/.claude/skills", "is_source": False},
-            "codex": {"enabled": False, "user_path": "~/.codex/skills", "is_source": False},
-            "gemini": {"enabled": False, "user_path": "~/.gemini/skills", "is_source": False},
-            "copilot": {"enabled": False, "user_path": "~/.copilot/skills", "is_source": False}
+            "claude": {"enabled": False, "user_path": "~/.claude/skills"},
+            "codex": {"enabled": False, "user_path": "~/.codex/skills"},
+            "gemini": {"enabled": False, "user_path": "~/.gemini/skills"},
+            "copilot": {"enabled": False, "user_path": "~/.copilot/skills"}
         },
-        "sync_mode": "symlink",
+        "runtime": {
+            "primary_platform": "claude",
+            "codex_mirrors_claude": True
+        },
+        "development_sync_mode": "copy",
+        "sync_mode": "copy",
         "marketplaces": {
             "private": {"repo": "", "description": "Personal/experimental skills", "visibility": "private"},
             "team": {"repo": "", "description": "Shared skills for collaborators", "visibility": "private"},
@@ -439,89 +444,70 @@ def setup_platforms(config: dict) -> dict:
     if not_detected:
         print(f"✗ Not detected: {', '.join(PLATFORMS[p]['name'] for p in not_detected)}")
 
-    # Step 1: Choose source platform
+    # Step 1: Choose managed runtime platforms
     print("\n" + "-" * 40)
-    print("STEP 1: Source of Truth")
+    print("STEP 1: Managed Runtime Platforms")
     print("-" * 40)
-    print("\nWhich platform holds your 'source' skills?")
-    print("Skills will be synced FROM this platform TO others.")
+    print("\nChoose which platform runtime directories skill-manager should manage.")
+    print("Git repos remain the canonical source of truth; these are install surfaces only.")
 
-    # Suggest detected platforms first
-    source_options = detected_list + [p for p in not_detected if p not in detected_list]
-    default_source = detected_list[0] if detected_list else 'claude'
-
-    for i, platform in enumerate(source_options, 1):
-        info = PLATFORMS[platform]
-        status = "detected" if detected[platform] else "not detected"
-        default_marker = " (recommended)" if platform == default_source else ""
-        print(f"  {i}. {info['name']} ({status}){default_marker}")
-
-    while True:
-        response = input(f"\nChoose source platform [1-{len(source_options)}]: ").strip()
-        if not response:
-            source_platform = default_source
-            break
-        try:
-            idx = int(response)
-            if 1 <= idx <= len(source_options):
-                source_platform = source_options[idx - 1]
-                break
-        except ValueError:
-            pass
-        print("Invalid choice, try again.")
-
-    print(f"\nSource platform: {PLATFORMS[source_platform]['name']}")
-
-    # Step 2: Choose target platforms
-    print("\n" + "-" * 40)
-    print("STEP 2: Sync Targets")
-    print("-" * 40)
-    print("\nWhich platforms should receive synced skills?")
-    print("(Skills from your source will be copied/symlinked here)")
-
-    target_platforms = []
-    for platform in PLATFORMS:
-        if platform == source_platform:
-            continue
-        info = PLATFORMS[platform]
+    enabled_platforms = []
+    for platform, info in PLATFORMS.items():
         status = "detected" if detected[platform] else "not detected"
         default_enable = detected[platform]
-
-        enable = prompt_yes_no(f"  Sync to {info['name']} ({status})?", default_enable)
+        enable = prompt_yes_no(f"  Manage {info['name']} ({status})?", default_enable)
         if enable:
-            target_platforms.append(platform)
+            enabled_platforms.append(platform)
 
-    if not target_platforms:
-        print("\nNo sync targets selected. You can add them later by re-running init.")
-    else:
-        print(f"\nWill sync to: {', '.join(PLATFORMS[p]['name'] for p in target_platforms)}")
+    if 'claude' not in enabled_platforms:
+        enabled_platforms.insert(0, 'claude')
+        print("\nClaude runtime installs are canonical in the recommended model; enabling Claude.")
 
-    # Step 3: Sync mode
+    print(f"\nManaged runtime platforms: {', '.join(PLATFORMS[p]['name'] for p in enabled_platforms)}")
+
+    # Step 2: Runtime model
     print("\n" + "-" * 40)
-    print("STEP 3: Sync Mode")
+    print("STEP 2: Runtime Model")
     print("-" * 40)
-    print("\nHow should skills be synced to target platforms?")
-    print("  1. symlink - Create symbolic links (changes propagate automatically)")
-    print("  2. copy - Copy files (independent copies, must re-sync to update)")
+    print("\nReleased skills should install into Claude's runtime copy and optionally mirror Codex to it.")
 
-    current_mode = config.get('sync_mode', 'symlink')
-    mode_response = prompt_with_default("Sync mode", current_mode)
-    sync_mode = mode_response if mode_response in ('symlink', 'copy') else 'symlink'
+    runtime = config.get('runtime', {})
+    primary_platform = 'claude'
+    codex_default = ('codex' in enabled_platforms) and runtime.get('codex_mirrors_claude', True)
+    codex_mirror = prompt_yes_no(
+        "Mirror Codex skills to the Claude-installed runtime copy?",
+        codex_default,
+    )
+
+    # Step 3: Development sync mode
+    print("\n" + "-" * 40)
+    print("STEP 3: Development Sync Mode")
+    print("-" * 40)
+    print("\nThis only affects ad hoc unpublished syncs via scripts/sync.py.")
+    print("Use install-from-marketplace.py for released runtime installs.")
+    print("  1. copy - Recommended for development syncs")
+    print("  2. symlink - Advanced/legacy mode")
+
+    current_mode = config.get('development_sync_mode', config.get('sync_mode', 'copy'))
+    mode_response = prompt_with_default("Development sync mode", current_mode)
+    sync_mode = mode_response if mode_response in ('symlink', 'copy') else 'copy'
 
     # Update config
     for platform in PLATFORMS:
         if platform not in config.get('platforms', {}):
             config.setdefault('platforms', {})[platform] = {
                 "enabled": False,
-                "user_path": PLATFORMS[platform]['user_path'],
-                "is_source": False
+                "user_path": PLATFORMS[platform]['user_path']
             }
 
-        config['platforms'][platform]['is_source'] = (platform == source_platform)
-        config['platforms'][platform]['enabled'] = (
-            platform == source_platform or platform in target_platforms
-        )
+        config['platforms'][platform]['enabled'] = platform in enabled_platforms
+        config['platforms'][platform]['is_source'] = (platform == primary_platform)
 
+    config['runtime'] = {
+        "primary_platform": primary_platform,
+        "codex_mirrors_claude": codex_mirror,
+    }
+    config['development_sync_mode'] = sync_mode
     config['sync_mode'] = sync_mode
 
     return config
@@ -671,7 +657,7 @@ def setup_marketplaces(config: dict, args) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Set up skill-manager for multi-platform sync and marketplaces')
+    parser = argparse.ArgumentParser(description='Set up skill-manager for repo-canonical publishing, runtime installs, and marketplaces')
     parser.add_argument('--skip-create', action='store_true',
                         help='Skip creating new GitHub repos')
     parser.add_argument('--skip-marketplaces', action='store_true',
@@ -685,6 +671,7 @@ def main():
     print("SKILL MANAGER SETUP")
     print("=" * 60)
     print("\nThis wizard will configure skill-manager for your environment.")
+    print("Git repos stay canonical; marketplaces distribute released artifacts; Claude runtime installs stay primary.\n")
     print("You can re-run this anytime to change settings.\n")
 
     # Load existing config
@@ -708,19 +695,18 @@ def main():
 
     # Platform summary
     print("\nPlatform Configuration:")
-    source_platform = None
     target_platforms = []
     for platform, pconfig in config.get('platforms', {}).items():
-        if pconfig.get('is_source'):
-            source_platform = platform
-        elif pconfig.get('enabled'):
+        if pconfig.get('enabled'):
             target_platforms.append(platform)
 
-    if source_platform:
-        print(f"  Source: {PLATFORMS[source_platform]['name']}")
+    runtime = config.get('runtime', {})
+    if runtime.get('primary_platform'):
+        print(f"  Primary runtime: {PLATFORMS[runtime['primary_platform']]['name']}")
     if target_platforms:
-        print(f"  Sync to: {', '.join(PLATFORMS[p]['name'] for p in target_platforms)}")
-    print(f"  Sync mode: {config.get('sync_mode', 'symlink')}")
+        print(f"  Managed platforms: {', '.join(PLATFORMS[p]['name'] for p in target_platforms)}")
+    print(f"  Codex mirrors Claude: {'Yes' if runtime.get('codex_mirrors_claude', True) else 'No'}")
+    print(f"  Development sync mode: {config.get('development_sync_mode', config.get('sync_mode', 'copy'))}")
 
     # Marketplace summary
     configured_marketplaces = [
@@ -740,15 +726,18 @@ def main():
     print("NEXT STEPS:")
     print("-" * 60)
 
-    if source_platform and target_platforms:
-        print("\n1. Sync a skill to other platforms:")
-        print(f"   scripts/sync.py ~/.{source_platform}/skills/my-skill --to {','.join(target_platforms)}")
+    if target_platforms:
+        print("\n1. Install a released skill into the managed runtime:")
+        first_marketplace = configured_marketplaces[0][0] if configured_marketplaces else 'team'
+        print(f"   scripts/install-from-marketplace.py --marketplace {first_marketplace} --skill my-skill")
+        print("\n2. Sync an unpublished local skill for development only:")
+        print("   scripts/sync.py /path/to/local/my-skill --to codex")
 
     if configured_marketplaces:
         first_marketplace = configured_marketplaces[0][0]
-        print("\n2. Publish a skill to a marketplace:")
+        print("\n3. Publish a skill to a marketplace:")
         print(f"   scripts/publish.py ~/.claude/skills/my-skill --to {first_marketplace}")
-        print("\n3. Add marketplaces to Claude Code:")
+        print("\n4. Add marketplaces to Claude Code:")
         for name, url in configured_marketplaces:
             owner_repo = '/'.join(url.split('/')[-2:])
             print(f"   /plugin marketplace add {owner_repo}")

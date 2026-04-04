@@ -71,7 +71,7 @@ Claude will automatically use the skill's instructions to complete the task.
 |-------|-------------|
 | [prd-executor](skills/prd-executor/) | Execute an existing PRD or implementation plan by acting as the orchestrator. Reads the plan, determines runnable threads, spawns bounded subagents when appropriate, tracks status, integrates results, and verifies completion. |
 | [prd-planner](skills/prd-planner/) | Generate structured PRD planning documents optimized for AI-assisted development. Creates discrete, single-conversation tasks with reasoning level estimates to optimize token usage and model selection. |
-| [skill-manager](skills/skill-manager/) | Manage, sync, and publish Agent Skills across multiple AI platforms. Write a skill once in Claude Code, then distribute it to Codex, Gemini CLI, and Copilot simultaneously. |
+| [skill-manager](skills/skill-manager/) | Manage repo-canonical skills across marketplaces and runtime installs. Publish released skills, install them into Claude, and mirror Codex to the Claude runtime copy. |
 
 ## Trust & Security
 

@@ -2,26 +2,27 @@
   "platforms": {
     "claude": {
       "enabled": false,
-      "user_path": "~/.claude/skills",
-      "is_source": false
+      "user_path": "~/.claude/skills"
     },
     "codex": {
       "enabled": false,
-      "user_path": "~/.codex/skills",
-      "is_source": false
+      "user_path": "~/.codex/skills"
     },
     "gemini": {
       "enabled": false,
-      "user_path": "~/.gemini/skills",
-      "is_source": false
+      "user_path": "~/.gemini/skills"
     },
     "copilot": {
       "enabled": false,
-      "user_path": "~/.copilot/skills",
-      "is_source": false
+      "user_path": "~/.copilot/skills"
     }
   },
-  "sync_mode": "symlink",
+  "runtime": {
+    "primary_platform": "claude",
+    "codex_mirrors_claude": true
+  },
+  "development_sync_mode": "copy",
+  "sync_mode": "copy",
   "marketplaces": {
     "private": {
       "repo": "",

@@ -192,6 +192,76 @@ class ReadmeUpdateTests(unittest.TestCase):
         self.assertFalse(changed)
 
 
+class RuntimeInstallTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = Path(tempfile.mkdtemp(prefix='skill-manager-runtime-tests-'))
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def test_replace_install_prunes_stale_files(self):
+        install_runtime = load_script_module('install-from-marketplace.py')
+        source = self.tempdir / 'source'
+        target = self.tempdir / 'target'
+        source.mkdir()
+        target.mkdir()
+        (source / 'SKILL.md').write_text('new\n')
+        (source / 'fresh.txt').write_text('fresh\n')
+        (target / 'stale.txt').write_text('stale\n')
+
+        install_runtime.replace_install(source, target)
+
+        self.assertTrue((target / 'SKILL.md').exists())
+        self.assertTrue((target / 'fresh.txt').exists())
+        self.assertFalse((target / 'stale.txt').exists())
+
+    def test_ensure_symlink_points_codex_to_primary_runtime(self):
+        install_runtime = load_script_module('install-from-marketplace.py')
+        primary = self.tempdir / 'claude' / 'skill'
+        codex = self.tempdir / 'codex' / 'skill'
+        primary.mkdir(parents=True)
+
+        install_runtime.ensure_symlink(codex, primary)
+
+        self.assertTrue(codex.is_symlink())
+        self.assertEqual(codex.resolve(), primary.resolve())
+
+
+class RuntimeAuditTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = Path(tempfile.mkdtemp(prefix='skill-manager-audit-tests-'))
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir, ignore_errors=True)
+
+    def test_compare_skill_trees_detects_removed_files(self):
+        audit_runtime = load_script_module('audit-runtime.py')
+        expected = self.tempdir / 'expected'
+        actual = self.tempdir / 'actual'
+        expected.mkdir()
+        actual.mkdir()
+        (expected / 'SKILL.md').write_text('skill\n')
+        (expected / 'removed.txt').write_text('gone\n')
+        (actual / 'SKILL.md').write_text('skill\n')
+
+        result = audit_runtime.compare_skill_trees(expected, actual)
+
+        self.assertEqual(result['status'], 'drift')
+        self.assertEqual(result['missing'], ['removed.txt'])
+
+    def test_classify_codex_runtime_reports_mirrored_symlink(self):
+        audit_runtime = load_script_module('audit-runtime.py')
+        primary = self.tempdir / 'claude' / 'skill'
+        codex = self.tempdir / 'codex' / 'skill'
+        primary.mkdir(parents=True)
+        codex.parent.mkdir(parents=True)
+        codex.symlink_to(primary.resolve())
+
+        result = audit_runtime.classify_codex_runtime(primary, codex)
+
+        self.assertEqual(result['status'], 'mirrored')
+
+
 class DryRunOutputTests(unittest.TestCase):
     def test_mirror_plan_format_is_deterministic(self):
         mirror = load_script_module('marketplace-mirror.py')
