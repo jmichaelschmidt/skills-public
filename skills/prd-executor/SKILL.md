@@ -156,6 +156,7 @@ Use it to decide:
 - how much context to include
 - how tight the file ownership should be
 - how much review the orchestrator should perform
+- **which model can handle the context volume** (see Context Volume below)
 
 Default policy:
 
@@ -163,6 +164,32 @@ Default policy:
 - **Medium**: delegate one bounded thread at a time
 - **Medium-High**: delegate only with strong references and explicit deliverables
 - **High**: keep the design and security decisions with the orchestrator
+
+### Context Volume Assessment
+
+Before spawning any subagent, estimate the total context the thread requires:
+
+1. **Count reference material**: sum the size of all files the thread must read (upstream deliverables, source docs, specs)
+2. **Add output space**: the agent needs room to write its deliverable after reading inputs
+
+Apply these routing rules based on context volume:
+
+| Context Volume | Routing |
+|---|---|
+| **Under 50KB** total input | Standard delegation -- any model handles this |
+| **50-100KB** total input | Prefer Opus; Sonnet may work if output is short |
+| **Over 100KB** total input | **Require Opus**, or keep the thread in the orchestrator session where context is already loaded |
+| **Synthesis threads** (must read all upstream deliverables) | **Always Opus or orchestrator-local**. These threads are the most likely to fail on smaller context windows. |
+
+### Identifying Synthesis Threads
+
+A thread is a synthesis thread if any of these are true:
+
+- Its reference material includes "all upstream thread deliverables" or lists 4+ prior thread outputs
+- It is the final thread in the plan and its purpose is integration, reconciliation, or roadmap creation
+- Its actions include "surface conflicts between upstream threads" or "synthesize all prior work"
+
+Synthesis threads should be flagged in commentary before dispatch. If the orchestrator already has upstream context loaded from reviewing prior threads, keeping the synthesis local is often faster and more reliable than delegating.
 
 ## Execution Rules
 

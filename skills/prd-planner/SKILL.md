@@ -129,6 +129,22 @@ Assign reasoning levels based on task characteristics. See [references/reasoning
 | **Medium-High** | Architecture decisions, test orchestration, investigation | Sonnet or Opus | GPT-5.4 high |
 | **High** | Novel problems, system design, complex debugging | Opus | GPT-5.4 high |
 
+### Context Volume Tag
+
+In addition to reasoning level, every thread should be tagged with its **context volume** -- the estimated total size of reference material the executing agent must read. This drives model selection during execution.
+
+| Tag | Meaning | Execution Implication |
+|-----|---------|----------------------|
+| **Light** (under 50KB) | Reads a few focused files | Any model handles this |
+| **Heavy** (50-100KB) | Reads several reference docs or upstream deliverables | Prefer larger context model |
+| **Synthesis** (over 100KB or reads all upstream deliverables) | Must hold entire prior work in context to integrate | **Require largest context model or execute in orchestrator session** |
+
+**When to apply the Synthesis tag:** A thread is a synthesis thread if it reads 4+ upstream deliverables, integrates or reconciles prior work, or is the capstone/final thread in a multi-thread plan. Always flag these explicitly -- they are the most likely to fail when delegated to a standard-context agent.
+
+Format in the PRD: append the context tag after reasoning effort, e.g.:
+- `Reasoning effort: Medium (Sonnet) | Context: Light`
+- `Reasoning effort: High (Opus) | Context: Synthesis`
+
 ---
 
 ## Thread Structure Requirements
@@ -140,7 +156,7 @@ Every thread in the PRD MUST include:
 3. **Actions with inline verification** - Specific work with verify steps (see below)
 4. **Reference material** - File paths to read first (use `file.py:1` format for line hints)
 5. **Deliverables** - Expected outputs
-6. **Reasoning effort** - Vendor-neutral level
+6. **Reasoning effort** - Vendor-neutral level with context volume tag
 
 ### Inline Verification (New Pattern)
 
@@ -220,7 +236,7 @@ Use this structure for all PRDs. See [references/prd-template.md](references/prd
 ### Thread 0 — Investigation — Reasoning Effort: medium-high
 [If needed - for bugs/unclear problems]
 
-### Thread 1 — [Name] — Reasoning Effort: [level]
+### Thread 1 — [Name] — Reasoning Effort: [level] | Context: [Light/Heavy/Synthesis]
 - **Purpose**: [goal]
 - **Actions**:
   - [action 1]
@@ -231,9 +247,9 @@ Use this structure for all PRDs. See [references/prd-template.md](references/prd
 - **Deliverables**: [outputs]
 - **Claude hint**: [Haiku/Sonnet/Opus or N/A]
 - **OpenAI hint**: [GPT-5.4 low/medium/high or strongest available model]
-- **Reasoning effort**: [level]
+- **Reasoning effort**: [level] | **Context volume**: [Light/Heavy/Synthesis]
 
-### Thread 2 — [Name] — Reasoning Effort: [level]
+### Thread 2 — [Name] — Reasoning Effort: [level] | Context: [Light/Heavy/Synthesis]
 [...]
 
 ## Acceptance Criteria
