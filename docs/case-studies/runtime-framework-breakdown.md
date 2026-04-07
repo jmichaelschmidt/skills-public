@@ -2,6 +2,14 @@
 
 This note distills lessons from an open-source agent runtime and orchestration codebase that was studied as a framework reference.
 
+For the fuller reference set, see:
+
+- [Reference Docs Index](../reference/README.md)
+- [Architecture Brief](../reference/framework/architecture-brief.md)
+- [Adoption Playbook](../reference/framework/adoption-playbook.md)
+- [Implementation Backlog](../reference/framework/implementation-backlog.md)
+- [Operating Instance Assessment](../reference/framework/operating-instance-assessment.md)
+
 ## Core Takeaways
 
 ### One orchestrator loop should own turn progression

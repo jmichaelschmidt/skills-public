@@ -100,6 +100,7 @@ The starter-pack follows a few non-default opinions:
 Start here for the reasoning:
 
 - [Design Principles](docs/design-principles.md)
+- [Reference Docs](docs/reference/README.md)
 - [Cowork Notes](docs/research/ccforpms-cowork-notes.md)
 - [Cowork Implications](docs/research/ccforpms-cowork-implications.md)
 - [Operating Instance Lessons](docs/case-studies/operating-instance-lessons.md)

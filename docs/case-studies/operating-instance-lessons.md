@@ -2,6 +2,12 @@
 
 This note distills lessons from a real multi-repo operating environment without carrying over its private names, internal paths, or product-specific docs.
 
+For the fuller public-safe reference material behind these lessons, see:
+
+- [Reference Docs Index](../reference/README.md)
+- [Agent Team Best Practices](../reference/research/agent-team-best-practices.md)
+- [Operating Instance Assessment](../reference/framework/operating-instance-assessment.md)
+
 ## 1. The Brief Matters More Than The Agent Label
 
 The most reliable delegation pattern was not “find the smartest role.” It was:
