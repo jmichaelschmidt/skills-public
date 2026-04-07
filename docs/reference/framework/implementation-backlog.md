@@ -1,6 +1,6 @@
 # Agent Framework Implementation Backlog
 
-Derived from internal source material created during a framework extraction pass over an open-source agent runtime and orchestration codebase. This public-safe copy preserves the original structure while omitting private repo-path assumptions from surrounding notes.
+Adapted from framework research on agent runtimes and orchestration. This guide preserves the implementation sequencing and interfaces in a portable form.
 
 ## Objective
 

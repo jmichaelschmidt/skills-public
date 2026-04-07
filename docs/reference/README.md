@@ -2,7 +2,7 @@
 
 This section is the deeper reference layer for builders who want more than the public starter-pack install docs.
 
-These documents are public-safe copies or public-safe rewrites derived from internal source material. They preserve structure and substance where possible, but remove private repo paths, private product names, and machine-specific assumptions.
+These documents are adapted from framework research, operating practice, and design synthesis. Some stay close to the original reference structure, while others are rewritten to emphasize reusable guidance for broader teams.
 
 ## Reading Paths
 
@@ -26,9 +26,9 @@ Read in this order:
 
 ## Source Map
 
-This reference layer is derived from two internal source families:
+This reference layer is derived from two source families:
 
 - a framework extraction pass from an open-source agent runtime and orchestration codebase
-- operating-instance doctrine and research notes collected while building and refining the public starter-pack approach
+- operating practice and research notes collected while building and refining the public starter-pack approach
 
-The copied framework docs preserve source structure closely. The assessment and best-practices docs are rewritten more heavily because the originals were tied to private operating context.
+The framework docs preserve source structure closely. The assessment and best-practices docs are more interpretive because they focus on transferable lessons rather than one specific operating environment.

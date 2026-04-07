@@ -1,6 +1,6 @@
 # Operating Instance Assessment
 
-Derived from internal source material that scored a real operating instance against the framework documented in this reference section. This public-safe version preserves the assessment structure and lessons while removing private repo identity, machine paths, and product-specific naming.
+Adapted from an assessment of a mature operator-managed agent setup against this framework. This guide preserves the assessment structure and transferable lessons for general use.
 
 ## Scope
 

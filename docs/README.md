@@ -32,7 +32,7 @@ Read in this order:
 - the reasoning behind the six-role starter-pack
 - the difference between machine install and repo refresh
 - the evidence behind the changes made after external research
-- lessons from a real multi-repo operating environment without leaking private operational details
+- lessons from a real multi-repo operating environment, adapted for general use
 - lessons from an open-source runtime architecture without treating one codebase as sacred
 
 ## Source Map

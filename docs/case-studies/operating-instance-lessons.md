@@ -1,8 +1,8 @@
 # Operating Instance Lessons
 
-This note distills lessons from a real multi-repo operating environment without carrying over its private names, internal paths, or product-specific docs.
+This note distills lessons from a real multi-repo operating environment and focuses on the parts that transfer well to other teams.
 
-For the fuller public-safe reference material behind these lessons, see:
+For the fuller reference material behind these lessons, see:
 
 - [Reference Docs Index](../reference/README.md)
 - [Agent Team Best Practices](../reference/research/agent-team-best-practices.md)

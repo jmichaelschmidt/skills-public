@@ -1,6 +1,6 @@
 # Agent Team Best Practices
 
-Derived from internal source material that combined external research, operating-instance doctrine, and starter-pack design iteration. This public-safe version preserves the guidance while removing private product names, machine assumptions, and repo-specific implementation details.
+Adapted from research and operating practice on building reusable agent teams. This guide preserves the core design guidance in a portable form.
 
 ## Big-Picture Best Practices
 
