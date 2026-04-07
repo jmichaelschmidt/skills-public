@@ -300,7 +300,7 @@ Configuration is stored in your user-local config file (created by `scripts/init
   "sync_mode": "copy",
   "marketplaces": {
     "private": {
-      "repo": "https://github.com/you/skills-private",
+      "repo": "https://github.com/your-org/skills-internal",
       "description": "Personal/experimental skills",
       "visibility": "private"
     },

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Subagent Starter Pack"
+  short_description: "Install and maintain a repo-independent Codex and Claude role starter-pack"
+  default_prompt: "Use $subagent-starter-pack to install, refresh, or migrate the shared planner, implementer, reviewer, docs-handoff, security-reviewer, and repo-hygiene starter-pack across repos or machines."

@@ -73,7 +73,7 @@ Source: Configuration management incident response
 ```markdown
 ## Shared Resources for All Threads
 
-- Repository root: `/Users/michael/Documents/GitHub/plumwheel/social_media_pipeline`
+- Repository root: `/path/to/social_media_pipeline`
 - Key config file: `config/models.yaml`
 - Python config helpers: `caption_service/utils/config.py`, `shared/config/settings.py`
 - Service entrypoint & logging: `caption_service/main.py`

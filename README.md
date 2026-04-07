@@ -1,69 +1,82 @@
 # Skills Marketplace: Public
 
-A free, curated collection of skills for Claude Code and other AI coding assistants.
+A curated marketplace of reusable skills for Claude Code, Codex, and other assistants that follow the Agent Skills format.
 
-## What Are Skills?
+This repo has two jobs:
 
-Skills are instructions that teach AI assistants how to perform specific tasks. When you install a skill, your AI assistant gains new capabilities - like knowing how to deploy to your server, follow your team's coding standards, or use your project's specific tools.
+- provide installable skills you can use immediately
+- explain the design ideas behind the more opinionated skills so other builders can adapt them
 
-Think of skills like browser extensions, but for AI assistants. They extend what your AI can do.
+## Who This Is For
 
-### Write Once, Use Everywhere
+This repo is for:
 
-Skills follow the [Agent Skills Specification](https://agentskills.io/specification), an open standard supported by multiple AI coding assistants including Claude Code, OpenAI Codex, Gemini CLI, and GitHub Copilot. This means:
+- operators who want practical skills they can install into Claude Code or Codex
+- builders who want a reference implementation for agent-team design
+- teams that want portable skills rather than assistant-specific one-offs
 
-- **One skill works across all platforms** - Write a skill once and use it with any supported AI assistant
-- **No vendor lock-in** - Your skills aren't tied to a single tool
-- **Portable workflows** - Switch between AI assistants without losing your custom capabilities
-- **Automatic syncing** - Use the `skill-manager` skill to automatically distribute skills across all your AI tools with a single command
+## Quick Start
 
-## Quick Start (5 minutes)
+### Install Through Claude Code
 
-### Prerequisites
+Add the marketplace once:
 
-- [Claude Code](https://claude.ai/download) installed (the CLI or VS Code extension)
-- A terminal or VS Code
-
-### Step 1: Add This Marketplace
-
-Open Claude Code and run:
-
-```
-/plugin marketplace add jmichaelschmidt/skills-public
+```text
+/plugin marketplace add <marketplace-owner>/skills-public
 ```
 
-This tells Claude Code where to find skills. You only need to do this once.
+Then open the plugin browser:
 
-### Step 2: Browse and Install Skills
-
-Run:
-
-```
+```text
 /plugin
 ```
 
-This opens the plugin browser. Use the arrow keys to navigate:
-- Go to the **Discover** tab to see available skills
-- Select a skill and press Enter to see details
-- Choose "Install for you (user scope)" to install it for all your projects
+Install a skill for user scope, then reload Claude Code if needed.
 
-### Step 3: Use Your New Skills
+### Manual Install
 
-Once installed, the skill is automatically active. Just ask Claude to do something the skill enables, or ask it to explain the skill to you.
+Clone the repo or copy an individual skill folder into your runtime skill directory:
 
-**Example - ask about a skill:**
-> "How does the skill-manager skill work?"
+- Claude Code: `~/.claude/skills/`
+- Codex: `~/.codex/skills/`
+- Gemini CLI: `~/.gemini/skills/`
+- GitHub Copilot: `~/.copilot/skills/`
 
-Your AI assistant will read the skill's instructions and explain its capabilities, commands, and how to use it.
+If you use both Claude and Codex, the intended runtime model is:
 
-**Example - use a skill:**
-> "List all my installed skills"
+- install the runtime copy in `~/.claude/skills/<skill>`
+- point `~/.codex/skills/<skill>` at that installed Claude copy
 
-or
+### Starter-Pack Quick Start
 
-> "Sync my skills to Codex"
+After installing `subagent-starter-pack`, refresh a repo from the canonical templates:
 
-Claude will automatically use the skill's instructions to complete the task.
+```bash
+bash ~/.codex/skills/subagent-starter-pack/scripts/install_starter_pack.sh --target "$PWD" --profile generic-v2 --refresh
+./tools/starter-pack/bootstrap_env.sh
+.venv/bin/python tools/starter-pack/validate.py
+```
+
+## What You Get
+
+### Install Surface
+
+The public install surface currently includes:
+
+- [subagent-starter-pack](skills/subagent-starter-pack/) for a portable six-role starter-pack across Claude and Codex
+- [prd-planner](skills/prd-planner/) for PRD-grade planning and thread decomposition
+- [prd-executor](skills/prd-executor/) for bounded execution of an approved plan
+- [skill-manager](skills/skill-manager/) for repo-canonical publishing, marketplace distribution, and runtime install management
+
+### Learning Surface
+
+The docs in [docs/README.md](docs/README.md) explain:
+
+- why the starter-pack uses six core roles
+- why the system stays serial by default
+- why reusable skills were added instead of more global roles
+- how repo refresh differs from machine install
+- how research and artifact-heavy work changed the design
 
 ## Available Skills
 
@@ -72,119 +85,69 @@ Claude will automatically use the skill's instructions to complete the task.
 | [prd-executor](skills/prd-executor/) | Execute an existing PRD or implementation plan by acting as the orchestrator. Reads the plan, determines runnable threads, spawns bounded subagents when appropriate, tracks status, integrates results, and verifies completion. |
 | [prd-planner](skills/prd-planner/) | Generate structured PRD planning documents optimized for AI-assisted development. Creates discrete, single-conversation tasks with reasoning level estimates to optimize token usage and model selection. |
 | [skill-manager](skills/skill-manager/) | Manage repo-canonical skills across marketplaces and runtime installs. Publish released skills, install them into Claude, and mirror Codex to the Claude runtime copy. |
+| [subagent-starter-pack](skills/subagent-starter-pack/) | Install a portable six-role starter-pack into any repo, then refresh and validate the repo-local managed files from canonical templates. |
 
-## Trust & Security
+## Why It Is Designed This Way
 
-### Curated by Collaborators
+The starter-pack follows a few non-default opinions:
 
-This is a **curated marketplace**, not an open publishing platform. Skills are added by known collaborators and reviewed before being merged. We don't accept unsolicited skill submissions from the general public.
+- roles are capability boundaries, not personality labels
+- durable artifacts matter more than chat memory
+- validation closes work; execution alone does not
+- repo-local managed files should be refreshed from canonical templates, not hand-forked
+- parallelism is useful, but bounded sidecars are safer than broad swarms for most repo work
 
-This approach ensures:
+Start here for the reasoning:
 
-- **No malicious instructions** - We review for prompt injection, data exfiltration attempts, and other security risks
-- **No harmful commands** - Skills that run destructive commands must include appropriate warnings and confirmations
-- **Transparent behavior** - Skills do what they claim to do, nothing more
-- **Quality standards** - Skills are well-documented and actually useful
+- [Design Principles](docs/design-principles.md)
+- [Cowork Notes](docs/research/ccforpms-cowork-notes.md)
+- [Cowork Implications](docs/research/ccforpms-cowork-implications.md)
+- [Operating Instance Lessons](docs/case-studies/operating-instance-lessons.md)
+- [Runtime Framework Breakdown](docs/case-studies/runtime-framework-breakdown.md)
 
-### How We Review Skills
+## Repo Layout
 
-Every skill is reviewed before being added. We check for:
-
-1. **Security risks** - Prompt injection, attempts to override safety guidelines, hidden instructions
-2. **Data safety** - No sending user data to external services without clear disclosure
-3. **Destructive operations** - Any commands that delete, overwrite, or modify system files must have safeguards
-4. **Credential handling** - Skills must not log, transmit, or mishandle sensitive information
-5. **Accuracy** - The skill description must match what it actually does
-
-### Your Responsibility
-
-Even with our review process, you should:
-
-- **Read a skill before installing** - Check the SKILL.md to understand what it does
-- **Review any scripts** - If a skill includes scripts, inspect them before running
-- **Report concerns** - If you notice suspicious behavior, [open an issue](https://github.com/jmichaelschmidt/skills-public/issues)
-
-## Contributing
-
-### For Collaborators
-
-If you're a collaborator on this repository, you can add skills directly or via pull request. Please follow the skill structure and guidelines below.
-
-### Interested in Contributing?
-
-If you've built a skill you think would be valuable here, [open an issue](https://github.com/jmichaelschmidt/skills-public/issues) to start a conversation. We may invite you as a collaborator if it's a good fit.
-
-### Skill Structure
-
-```
+```text
 skills/
-└── your-skill-name/
-    ├── SKILL.md        # Required - the skill instructions
-    ├── scripts/        # Optional - helper scripts
-    └── references/     # Optional - reference docs
+  subagent-starter-pack/
+  prd-planner/
+  prd-executor/
+  skill-manager/
+docs/
+  README.md
+  design-principles.md
+  research/
+  case-studies/
 ```
 
-### SKILL.md Format
+- `skills/` is the installable marketplace surface
+- `docs/` is the educational surface
 
-```markdown
----
-name: your-skill-name
-description: A short description of what this skill does and when to use it.
----
+## Public And Private Scope
 
-# Your Skill Name
+This public repo intentionally publishes only the generic starter-pack core.
 
-Instructions for the AI assistant go here...
-```
+It does not include:
 
-### Skill Guidelines
+- private compatibility profiles
+- private migration notes
+- repo-specific validation paths
+- brand-specific operating docs
 
-Good skills are:
+That split is intentional. The public version is meant to be portable and teachable.
 
-- **Focused** - Do one thing well
-- **Clear** - Write instructions the AI can follow unambiguously
-- **Safe** - Include warnings for destructive operations; never hide behavior
-- **Documented** - Explain what the skill does, when to use it, and any prerequisites
-- **Cross-platform** - Avoid hardcoding paths or platform-specific assumptions when possible
+## Trust And Review
 
-## Installing Skills Manually
+This is a curated marketplace, not an unrestricted prompt dump.
 
-If you prefer not to use the `/plugin` UI, you can install skills manually:
+Skills added here should be:
 
-1. Clone this repo or download a skill folder
-2. Copy it to `~/.claude/skills/`
-3. Restart Claude Code
-
-For other platforms:
-- **Codex**: `~/.codex/skills/`
-- **Gemini CLI**: `~/.gemini/skills/`
-- **GitHub Copilot**: `~/.copilot/skills/`
-
-Or use the `skill-manager` skill to sync across all platforms automatically.
-
-## Troubleshooting
-
-### "Marketplace not found" error
-
-Make sure you added the marketplace first:
-```
-/plugin marketplace add jmichaelschmidt/skills-public
-```
-
-### Skill not appearing after install
-
-1. Try reloading your IDE window (VS Code: `Cmd+Shift+P` → "Reload Window")
-2. In `/plugin`, go to Marketplaces tab and press `u` to update
-
-### "Authentication failed" for private repos
-
-This marketplace is public, so no authentication is needed. If you're trying to add a private marketplace, set `GITHUB_TOKEN` in your environment.
+- explicit about what they do
+- safe about destructive operations
+- structured so the runtime behavior can be reviewed
+- portable across assistants when possible
 
 ## Learn More
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
-- [Agent Skills Specification](https://agentskills.io/specification) - Technical spec for skill authors
-
-## License
-
-Skills in this marketplace are provided as-is. Check individual skill folders for specific licensing.
+- [Agent Skills Specification](https://agentskills.io/specification)
+- [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code)
