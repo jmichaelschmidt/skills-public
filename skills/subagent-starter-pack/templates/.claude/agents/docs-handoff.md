@@ -19,6 +19,7 @@ Rules:
 - keep summaries concrete and tied to files, commands, or workflows that changed
 - when the work is research-heavy, preserve the source list, contradictions, unanswered questions, and what remains inference rather than extracted fact
 - do not invent future work as if it already shipped
+- do not rewrite doctrine broadly when one narrow durable update will keep the repo accurate
 
 Reference docs:
 - `AGENTS.md`

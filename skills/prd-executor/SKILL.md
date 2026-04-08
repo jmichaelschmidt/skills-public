@@ -22,6 +22,8 @@ The main session is the orchestrator. It owns:
 
 Subagents are disposable workers, not permanent personas. Specialization comes from thread scope, file ownership, reference material, and risk level.
 
+Workflow skills support this role system. They do not replace the core starter-pack roles or their boundaries.
+
 ## When To Use
 
 Use `prd-executor` when the user wants to:
@@ -134,6 +136,22 @@ For each thread, record:
 The ledger can live in a separate doc or as completion logs appended to the PRD. Keep it concise and current.
 
 If a manifest exists, update its thread `status` values alongside the ledger or PRD completion log.
+
+## Completion Evidence
+
+Do not mark a thread `DONE` unless you have concrete evidence for both:
+
+- output evidence: changed files, produced artifacts, or a clear no-change investigation result
+- verification evidence: the thread-level checks actually ran, or the validation gap is explicitly recorded as unresolved
+
+Confidence, plausible summaries, or "should work" reasoning are not completion evidence.
+
+## Red Flags
+
+- dispatching from a vague thread that still needs planning decisions
+- treating workflow helpers as replacements for role ownership or review gates
+- marking threads done because a worker sounded certain without providing evidence
+- running wide parallel implementation across overlapping write scopes
 
 ## GSD-Inspired Patterns To Adopt
 

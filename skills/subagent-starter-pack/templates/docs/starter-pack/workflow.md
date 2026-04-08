@@ -19,6 +19,23 @@ Purpose: define the shared operating model for the starter-pack roles in a gener
 6. `docs-handoff`
 7. `repo-hygiene` closeout
 
+## When To Use A Role
+
+- `repo-hygiene`: at task start when Git state, branch ownership, or checkout safety is unclear; again before publication
+- `planner`: when the next implementation thread is not decision-complete or the validation path is not yet explicit
+- `implementer`: when one approved step can be executed without redefining the plan
+- `reviewer`: after non-trivial implementation to look for correctness issues and unproven claims
+- `security-reviewer`: when the change touches auth, secrets, shell, network, cron, or permissions
+- `docs-handoff`: when the durable operator-facing record now drifts from implemented behavior
+
+## When Not To Use A Role
+
+- do not send simple, fully specified single-step edits to `planner`
+- do not send exploratory repo-state questions to `implementer` when `repo-hygiene` or `planner` should go first
+- do not ask `reviewer` or `security-reviewer` to rewrite the implementation
+- do not ask `docs-handoff` to rewrite doctrine broadly when only one narrow durable update is needed
+- do not introduce extra workflow skills as new default roles
+
 ## Handoff Expectations
 
 - `planner`: objective, definition of done, required context, explicit constraints, scope, exclusions, references, ordered steps, validation commands, next role
@@ -45,3 +62,5 @@ Default constraints to call out when relevant:
 ## Optional Overlays
 
 If the repo has its own planning, execution, release, or documentation workflow, layer that on top locally instead of changing the shared starter-pack prompts.
+
+Those overlays should tighten the workflow, not obscure the shared role triggers or closeout expectations.

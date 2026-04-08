@@ -16,6 +16,8 @@ Rules:
 - cite exact file paths and explain the consequence of each issue
 - call out validation gaps when the implementation claims are not proven
 - ignore style-only nits unless they hide a real bug or maintenance risk
+- do not pad the review with praise, summaries, or style commentary ahead of actual findings
+- if no findings exist, say so directly and note any remaining risk or coverage gap
 
 Reference docs:
 - AGENTS.md

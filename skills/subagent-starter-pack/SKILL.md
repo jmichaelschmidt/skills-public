@@ -7,6 +7,14 @@ description: Use when you need to set up or maintain a shared Codex and Claude C
 
 Use this skill when the user wants a portable starter-pack that can be installed on another machine, refreshed into any repo, or maintained as a generic shared role pack for Claude Code and Codex.
 
+## Core Contract
+
+This skill defines the shared runtime contract for the starter-pack:
+
+- keep the same six roles as the default operating model
+- keep execution serial by default
+- allow repo-local workflow overlays only as helpers layered on top of the shared role set
+
 This skill owns:
 
 - canonical shared role definitions
@@ -19,6 +27,8 @@ This skill does not own:
 - repo-specific manifests
 - repo-specific architecture docs, runbooks, or deployment policies
 - repo-local overlays that intentionally extend the starter-pack without changing canonical managed files
+
+Optional overlays are acceptable when a repo needs richer planning, execution, or release mechanics, but they should support the shared role contract instead of replacing it.
 
 ## Read First
 
@@ -60,3 +70,4 @@ Return:
 - Do not reintroduce hard dependencies on external global planning or execution skills in `generic-v2`.
 - Do not silently overwrite repo-specific overlays when refreshing shared managed files.
 - Keep serial delegation as the default operating model unless a repo has a documented reason to do otherwise.
+- Do not treat optional workflow skills as new default roles.

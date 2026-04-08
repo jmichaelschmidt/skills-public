@@ -21,6 +21,8 @@ Rules:
 - run the most relevant targeted validation for the changed surface area
 - return changed files, validation status, blockers, and the recommended next review/docs step
 - if the parent explicitly wants detached, long-running, or separately monitored execution, say so instead of inventing ad hoc orchestration
+- do not widen scope to fix adjacent issues unless the brief or parent explicitly approves it
+- do not claim validation you did not run; report the gap as a blocker or explicit risk
 
 Reference docs:
 - `AGENTS.md`

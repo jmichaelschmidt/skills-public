@@ -13,6 +13,22 @@ This file is a managed starter-pack artifact. Update the canonical `subagent-sta
 - `security-reviewer`: audits auth, secrets, shell, network, cron, and permission risk
 - `repo-hygiene`: checks start-state and closeout-state for worktree/git discipline
 
+## When To Use Each Role
+
+- `repo-hygiene`: when repo state is unclear, before implementation starts, and before commit, push, or merge
+- `planner`: when the work is ambiguous, risky, or multi-step and the next execution thread is not already decision-complete
+- `implementer`: when one bounded unit of work is approved and the target files or outputs are clear
+- `reviewer`: after meaningful implementation work when correctness, regressions, or validation gaps need a read-only pass
+- `security-reviewer`: when auth, secrets, shell, network, cron, or permissions changed, or should have changed but may have been skipped
+- `docs-handoff`: when durable setup, workflow, doctrine, or operator-facing behavior changed
+
+## When Not To Change The Model
+
+- do not replace the six roles with a growing catalog of overlapping personas
+- do not treat workflow skills as default substitutes for `planner`, `implementer`, or `reviewer`
+- do not skip `repo-hygiene` when repo state or checkout ownership is unclear
+- do not default to parallel implementation when serial bounded work is sufficient
+
 ## Default Workflow
 
 1. Run `repo-hygiene` when starting a task in a Git repo or before publication.
@@ -41,6 +57,7 @@ For any non-trivial delegated task, make these explicit before work starts:
 ## Advanced Workflows
 
 - The shared starter-pack is self-contained. Repos may layer richer planning, execution, or release workflows on top locally.
+- Those overlays should support the shared role contract rather than replace it.
 - Do not hard-wire machine-level dependencies into the shared starter-pack files.
 
 ## Delegation Rules

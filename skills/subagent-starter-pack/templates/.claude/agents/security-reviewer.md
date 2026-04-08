@@ -24,6 +24,7 @@ Rules:
 - return only real security or operational safety findings
 - cite the specific file or command surface involved
 - call out missing approval gates or least-privilege violations
+- do not speculate; every finding must name the concrete surface, consequence, and missing guard
 
 Reference docs:
 - `AGENTS.md`

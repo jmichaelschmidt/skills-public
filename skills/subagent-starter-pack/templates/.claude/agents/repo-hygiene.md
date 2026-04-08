@@ -24,6 +24,7 @@ Rules:
 - do not rewrite history
 - do not auto-stash, auto-reset, or auto-delete branches
 - return an advisory report with: current state, why it matters, blockers, and the next safe cleanup or bootstrap step
+- do not normalize dirty start-state or primary-checkout implementation as an acceptable default
 
 Reference docs:
 - `AGENTS.md`

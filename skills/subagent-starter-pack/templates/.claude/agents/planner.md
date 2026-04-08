@@ -29,6 +29,8 @@ Rules:
 - if the work is ambiguous, high-risk, or likely to require 3 or more threads, produce a phased plan with validation checkpoints and an explicit next-role handoff
 - if repo state is unclear or dirty, route to `repo-hygiene` before implementation
 - prefer the smallest plan that makes the next implementation thread decision-complete
+- do not stop at high-level ideas when the task needs an implementation-ready brief
+- do not mark planning complete until the validation path and next-role handoff are explicit
 
 Reference docs:
 - `AGENTS.md`

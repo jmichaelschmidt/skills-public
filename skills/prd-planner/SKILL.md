@@ -15,6 +15,22 @@ Generate structured planning documents that optimize AI-assisted development by 
 4. **Progressive Tracking** - Checklist format enables clear progress visibility and serves as context for subsequent threads
 5. **Goal-Backwards Design** - Start from the end state and work backward to determine thread sequence
 
+## Verification
+
+Before returning a PRD, verify that:
+
+- every thread has a clear purpose, reference material, and deliverable
+- validation is explicit enough that an implementer can prove completion
+- dependencies and sequencing are clear enough to execute without replanning
+- the plan stays focused on implementation quality rather than generic project-management ceremony
+
+## Red Flags
+
+- threads that say "implement the feature" without clear file, interface, or verification boundaries
+- plans that rely on confidence instead of testable checks
+- broad parallel swarms when one serial backbone with bounded sidecars would be safer
+- planning output that stays conceptual when the next thread needs a decision-complete brief
+
 ## PRD Creation Process
 
 1. **Discuss phase (if needed)** - Clarify requirements before planning (see below)
